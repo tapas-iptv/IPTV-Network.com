@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPTV-Network.com</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-emerald-500 selection:text-white antialiased">
+
+    <!-- Header Section -->
+    <header class="bg-slate-800/85 backdrop-blur-md border-b border-slate-700/50 py-4 px-4 sm:px-6 sticky top-0 z-50 shadow-md">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <svg class="w-6 h-6 sm:w-7 sm:h-7 text-emerald-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                </svg>
+                <h1 class="text-lg sm:text-xl font-bold tracking-wide text-slate-100 truncate">IPTV-Network.com</h1>
+            </div>
+            <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full font-medium shrink-0">Live Server</span>
+        </div>
+    </header>
+
+    <!-- Main Content Section -->
+    <main class="max-w-4xl w-full mx-auto px-3 sm:px-4 py-6 sm:py-8 flex-grow">
+        
+        <!-- Notice Box -->
+        <div class="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 mb-6 shadow-lg backdrop-blur-sm">
+            <div class="flex items-start gap-3">
+                <span class="text-emerald-400 text-lg shrink-0 mt-0.5">📢</span>
+                <div>
+                    <h3 class="text-sm sm:text-base font-semibold text-emerald-300 mb-1">গুরুত্বপূর্ণ নোটিশ</h3>
+                    <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                        স্বাগতম! আপনারা সবাই কোনো রকম বিরক্তিকর অ্যাড, পপ-আপ কিংবা অ্যাডাল্ট বা জুয়ার বিজ্ঞাপন ছাড়াই সরাসরি সমস্ত আপডেট করা ফাইল ও লিংক কোনো ঝামেলা ছাড়াই সংগ্রহ করতে পারবেন।
+                    </p>
+                    <p class="text-xs sm:text-slate-400 mt-3">
+                        ধন্যবাদ, <br><strong class="text-slate-200">তাপস মন্ডল</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Category Navigation Tabs -->
+        <div id="categoryTabsContainer" class="flex items-center gap-2 overflow-x-auto pb-3 mb-6 scrollbar-none">
+            <button class="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-400 border border-slate-700/60 shrink-0">Loading categories...</button>
+        </div>
+
+        <!-- Playlist Container -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 sm:p-6 shadow-xl backdrop-blur-sm">
+            <div class="border-b border-slate-700/60 pb-3 sm:pb-4 mb-4 sm:mb-6 flex items-center justify-between">
+                <h2 class="text-base sm:text-xl font-semibold text-slate-200 flex items-center gap-2">
+                    📂 Available Playlist Files
+                </h2>
+                <span id="currentCategoryTitle" class="text-xs text-emerald-400 font-mono bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">All</span>
+            </div>
+
+            <!-- Dynamic Files Container -->
+            <div id="playlist" class="space-y-4">
+                <p class="text-slate-400 text-center py-6 text-sm sm:text-base">Loading files...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer Section -->
+    <footer class="bg-slate-800/40 border-t border-slate-800 py-4 text-center text-xs text-slate-400 px-4">
+        <p>&copy; 2026 Developed by Tapas Mondal | All rights reserved.</p>
+    </footer>
+
+    <!-- Script File -->
+    <script src="script.js"></script>
+</body>
+</html>
