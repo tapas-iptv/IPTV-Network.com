@@ -1,11 +1,10 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-// আপনার Supabase প্রজেক্টের ক্রিপডেনশিয়াল এখানে বসান
+// আপনার Supabase প্রজেক্টের ক্রিপডেনশিয়াল
 const SUPABASE_URL = 'https://liljnnprtqwoimmsjuhy.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_1HibJOEynpqyB-xuwZnruw_CvwaA3Dd';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// আপনার Supabase Storage Bucket-এর নাম এখানে দিন (যেমন: 'IPTV-Network')
 const STORAGE_BUCKET = 'IPTV-Network'; 
 
 window.onload = () => {
@@ -20,7 +19,6 @@ async function initPortal() {
     if (!tabsContainer) return;
     
     try {
-        // স্টোরেজের মূল রুট ফোল্ডার লিস্ট ফেচ করা
         let { data: folders, error } = await supabase.storage
             .from(STORAGE_BUCKET)
             .list('', { limit: 100 });
@@ -96,14 +94,14 @@ function switchCategory(categoryName, btnElement) {
     loadFiles(categoryName);
 }
 
-// ফাইলের নাম থেকে আইডি বের করার ফাংশন
+// ফাইলের নাম থেকে আইডি বের করার ফাংশন (যেমন: Name_8.m3u থেকে 8)
 function extractHashId(filename) {
     let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
     let match = nameWithoutExt.match(/_([a-zA-Z0-9]+)$/);
     return match ? match[1].trim() : null;
 }
 
-// স্টোরেজ থেকে ফাইল লোড করার মেইন ফাংশন
+// স্টোরেজ থেকে ফাইল ও ছবি লোড করার মেইন ফাংশন
 async function loadFiles(targetCategory) {
     const playlistContainer = document.getElementById("playlist");
     if (!playlistContainer) return;
@@ -119,7 +117,7 @@ async function loadFiles(targetCategory) {
 
         for (let catName of categoriesToFetch) {
             try {
-                // ফোল্ডারের ভেতরের ফাইলগুলোর লিস্ট আনা
+                // ১. মূল ক্যাটাগরি ফোল্ডারের ফাইল লিস্ট আনা
                 let { data: items, error } = await supabase.storage
                     .from(STORAGE_BUCKET)
                     .list(catName, { limit: 100 });
@@ -129,22 +127,22 @@ async function loadFiles(targetCategory) {
                 let validFiles = items.filter(item => {
                     let nameLower = item.name.toLowerCase();
                     let isImage = /\.(png|jpg|jpeg|webp)$/i.test(nameLower);
+                    let isFolder = (item.id === null);
                     let isHidden = nameLower.startsWith('.');
-                    return !isImage && !isHidden && item.name !== "";
+                    return !isImage && !isFolder && !isHidden && item.name !== "";
                 });
 
-                // যদি ফোল্ডারে আলাদা 'images' ফোল্ডার থাকে
+                // ২. ক্যাটাগরির ভেতরে যদি আলাদা 'images' ফোল্ডার থাকে, তার ফাইল লিস্ট আনা
                 let imagesList = [];
-                let imgFolderItem = items.find(item => item.name.toLowerCase() === "images" && item.id === null);
-                if (imgFolderItem) {
-                    let { data: imgData } = await supabase.storage
-                        .from(STORAGE_BUCKET)
-                        .list(`${catName}/images`, { limit: 100 });
-                    if (imgData) {
-                        imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name));
-                    }
+                let { data: imgData } = await supabase.storage
+                    .from(STORAGE_BUCKET)
+                    .list(`${catName}/images`, { limit: 100 });
+                
+                if (imgData) {
+                    imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name.toLowerCase()));
                 }
 
+                // ৩. ছবিগুলোর একটি ম্যাপ তৈরি করা আইডি দিয়ে
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
@@ -160,10 +158,10 @@ async function loadFiles(targetCategory) {
                     }
                 }
 
+                // ৪. প্রতিটি ফাইলের জন্য ডেটা প্রসেস করা
                 for (let i = 0; i < validFiles.length; i++) {
                     let file = validFiles[i];
                     
-                    // ফাইলের পাবলিক ডাউনলোড লিংক জেনারেট করা
                     let { data: publicURLData } = supabase.storage
                         .from(STORAGE_BUCKET)
                         .getPublicUrl(`${catName}/${file.name}`);
@@ -182,6 +180,7 @@ async function loadFiles(targetCategory) {
                     let fileHashId = extractHashId(file.name);
                     let matchedImgObj = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : null;
 
+                    // যদি আইডি না মেলে, তবে প্রথম ছবিটি ফলব্যাক হিসেবে নেওয়া
                     if (!matchedImgObj && imagesList.length > 0) {
                         let fallbackImg = imagesList[i % imagesList.length];
                         let { data: fbUrlData } = supabase.storage
@@ -304,20 +303,13 @@ function copyRawLink(url, buttonElement) {
     });
 }
 
-// ফাইল ডাউনলোড করার ফাংশন
-async function downloadOriginalFile(url, filename) {
-    try {
-        let response = await fetch(url);
-        let blob = await response.blob();
-        let blobUrl = window.URL.createObjectURL(blob);
-        let a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
-        window.open(url, '_blank');
-    }
+// ফাইল ডাউনলোড করার ফাংশন (সরাসরি নতুন ট্যাবে ওপেন করে ডাউনলোড নিশ্চিত করার জন্য)
+function downloadOriginalFile(url, filename) {
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 }
