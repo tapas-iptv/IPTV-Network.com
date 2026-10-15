@@ -133,7 +133,7 @@ async function loadFiles(targetCategory) {
                     return !isImage && !isFolder && !isHidden && item.name !== "";
                 });
 
-                // ২. ক্যাটাগরির ভেতরের 'images' ফোল্ডারের ফাইল লিস্ট আনা
+                // ২. ক্যাটাগরির ভেতরের 'images' ফোল্ডারের ফাইল লিস্ট আনা (সঠিক সাব-পাথ দিয়ে)
                 let imagesList = [];
                 let { data: imgData, error: imgError } = await supabase.storage
                     .from(STORAGE_BUCKET)
@@ -143,12 +143,11 @@ async function loadFiles(targetCategory) {
                     imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name.toLowerCase()));
                 }
 
-                // ৩. সরাসরি Supabase স্টোরেজের পাবলিক URL স্ট্রাকচার দিয়ে ইমেজ ম্যাপ তৈরি করা
+                // ৩. ইমেজ ম্যাপ তৈরি করা যাতে আইডি বা হ্যাশ দিয়ে হুবহু ম্যাচ করানো যায়
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
                     
-                    // Supabase-এর সরাসরি রেন্ডারেবল পাবলিক URL (এনকোড করা পাথ সহ)
                     let directPublicUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${encodeURIComponent(catName)}/images/${encodeURIComponent(img.name)}`;
 
                     if (hashId) {
@@ -163,7 +162,6 @@ async function loadFiles(targetCategory) {
                 for (let i = 0; i < validFiles.length; i++) {
                     let file = validFiles[i];
                     
-                    // ফাইলের সরাসরি পাবলিক ডাউনলোড URL
                     let downloadUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${encodeURIComponent(catName)}/${encodeURIComponent(file.name)}`;
                     
                     let commitTime = file.updated_at ? new Date(file.updated_at).getTime() : 0;
@@ -192,7 +190,6 @@ async function loadFiles(targetCategory) {
 
                     let matchedImgUrl = matchedImgObj ? matchedImgObj.url : "";
                     
-                    // টাইটেল তৈরির অংশ (যেটি আপনার অলরেডি কাজ করছে)
                     let rawNameToClean = matchedImgObj ? matchedImgObj.name : file.name;
                     let nameWithoutExt = rawNameToClean.replace(/\.[^/.]+$/, "");
                     let cleanBaseName = nameWithoutExt.replace(/_[a-zA-Z0-9]+$/, "");
@@ -234,7 +231,6 @@ async function loadFiles(targetCategory) {
                 ? `<span class="bg-amber-500 text-slate-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow animate-pulse shrink-0 inline-flex items-center">✨ Latest</span>` 
                 : '';
 
-            // ইমেজ ট্যাগ যাতে ছবি লোড না হলে ডিফল্ট আইকন দেখায়
             let imageTag = fileObj.image 
                 ? `<img src="${fileObj.image}" alt="${fileObj.title}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://via.placeholder.com/300x160?text=Live+Stream';">`
                 : `<div class="w-full h-full flex items-center justify-center bg-slate-800 text-emerald-400 font-bold text-lg">📺 IPTV</div>`;
