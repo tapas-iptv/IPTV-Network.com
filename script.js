@@ -132,7 +132,7 @@ async function loadFiles(targetCategory) {
                     return !isImage && !isFolder && !isHidden && item.name !== "";
                 });
 
-                // ২. ক্যাটাগরির ভেতরে যদি আলাদা 'images' ফোল্ডার থাকে, তার ফাইল লিস্ট আনা
+                // ২. ক্যাটাগরির ভেতরে 'images' ফোল্ডারের ফাইল লিস্ট আনা
                 let imagesList = [];
                 let { data: imgData } = await supabase.storage
                     .from(STORAGE_BUCKET)
@@ -146,6 +146,7 @@ async function loadFiles(targetCategory) {
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
+                    // Supabase থেকে ছবির সঠিক পাবলিক ইউআরএল নেওয়ার পদ্ধতি
                     let { data: publicURLData } = supabase.storage
                         .from(STORAGE_BUCKET)
                         .getPublicUrl(`${catName}/images/${img.name}`);
@@ -162,6 +163,7 @@ async function loadFiles(targetCategory) {
                 for (let i = 0; i < validFiles.length; i++) {
                     let file = validFiles[i];
                     
+                    // ফাইলের সঠিক পাবলিক ডাউনলোড/র লিংক জেনারেট করা
                     let { data: publicURLData } = supabase.storage
                         .from(STORAGE_BUCKET)
                         .getPublicUrl(`${catName}/${file.name}`);
@@ -180,7 +182,7 @@ async function loadFiles(targetCategory) {
                     let fileHashId = extractHashId(file.name);
                     let matchedImgObj = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : null;
 
-                    // যদি আইডি না মেলে, তবে প্রথম ছবিটি ফলব্যাক হিসেবে নেওয়া
+                    // যদি আইডি না মেলে, তবে ক্যাটাগরির প্রথম ছবি বা ফলব্যাক ছবি নেওয়া
                     if (!matchedImgObj && imagesList.length > 0) {
                         let fallbackImg = imagesList[i % imagesList.length];
                         let { data: fbUrlData } = supabase.storage
@@ -193,7 +195,7 @@ async function loadFiles(targetCategory) {
                         };
                     }
 
-                    let matchedImgUrl = matchedImgObj ? matchedImgObj.download_url : "https://via.placeholder.com/300x160?text=No+Preview";
+                    let matchedImgUrl = matchedImgObj ? matchedImgObj.download_url : "";
                     
                     let rawNameToClean = matchedImgObj ? matchedImgObj.name : file.name;
                     let nameWithoutExt = rawNameToClean.replace(/\.[^/.]+$/, "");
@@ -235,11 +237,16 @@ async function loadFiles(targetCategory) {
                 ? `<span class="bg-amber-500 text-slate-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow animate-pulse shrink-0 inline-flex items-center">✨ Latest</span>` 
                 : '';
 
+            // যদি ইমেজ লিংক না থাকে, তবে ডিফল্ট আইকন বা গ্রে ব্যাকগ্রাউন্ড দেখানোর ব্যবস্থা
+            let imageTag = fileObj.image 
+                ? `<img src="${fileObj.image}" alt="${fileObj.title}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://via.placeholder.com/300x160?text=Live+Stream';">`
+                : `<div class="w-full h-full flex items-center justify-center bg-slate-800 text-emerald-400 font-bold text-lg">📺 IPTV</div>`;
+
             let fileItem = `
                 <div class="bg-slate-700/40 hover:bg-slate-700/70 transition-all rounded-xl overflow-hidden flex flex-col sm:flex-row items-stretch border border-slate-600/40 shadow-sm mb-3">
                     <!-- Thumbnail Image -->
                     <div class="sm:w-48 h-36 sm:h-auto shrink-0 bg-slate-900 relative">
-                        <img src="${fileObj.image}" alt="${fileObj.title}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x160?text=Error'">
+                        ${imageTag}
                     </div>
                     
                     <!-- Content & Actions -->
@@ -264,11 +271,11 @@ async function loadFiles(targetCategory) {
                         </div>
 
                         <div class="flex items-center gap-2 w-full sm:w-auto pt-2 border-t border-slate-600/30">
-                            <!-- Copy Link -->
+                            <!-- Copy Link (সরাসরি র লিংক কপি করার জন্য) -->
                             <button onclick="copyRawLink('${fileObj.download_url}', this)" class="flex-1 sm:flex-none bg-slate-600 hover:bg-slate-500 text-slate-200 font-medium px-3.5 py-2 rounded-lg text-xs sm:text-sm text-center transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shrink-0">
                                 🔗 Copy Link
                             </button>
-                            <!-- Download -->
+                            <!-- Download (সরাসরি ফাইল ডাউনলোড করার জন্য) -->
                             <button onclick="downloadOriginalFile('${fileObj.download_url}', '${fileObj.name}')" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg text-xs sm:text-sm text-center transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shrink-0">
                                 📥 Download
                             </button>
@@ -285,7 +292,7 @@ async function loadFiles(targetCategory) {
     }
 }
 
-// লিংক কপি করার ফাংশন
+// র লিংক কপি করার ফাংশন
 function copyRawLink(url, buttonElement) {
     navigator.clipboard.writeText(url).then(() => {
         let originalText = buttonElement.innerHTML;
@@ -303,7 +310,7 @@ function copyRawLink(url, buttonElement) {
     });
 }
 
-// ফাইল ডাউনলোড করার ফাংশন (সরাসরি নতুন ট্যাবে ওপেন করে ডাউনলোড নিশ্চিত করার জন্য)
+// ফাইল ডাউনলোড করার ফাংশন (সরাসরি টার্গেট লিংকে ট্রিগার করার জন্য)
 function downloadOriginalFile(url, filename) {
     let a = document.createElement('a');
     a.href = url;
