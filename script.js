@@ -1,111 +1,321 @@
 // Supabase Configuration
 const SUPABASE_URL = 'https://liljnnprtqwoimmsjuhy.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_1HibJOEynpqyB-xuwZnruw_CvwaA3Dd'; // আপনার Publishable Key
 const BUCKET_NAME = 'IPTV-Network';
+
 const STORAGE_URL = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}`;
+const STORAGE_LIST_URL = `${SUPABASE_URL}/storage/v1/object/list/${BUCKET_NAME}`;
 
-// আপনার সুপাবেস বালতিতে থাকা ফোল্ডার বা ক্যাটাগরিগুলোর নাম
-const CATEGORIES = [
-    "Auto Update",
-    "Movies",
-    "Skym3u.dev",
-    "Sports",
-    "Xtream & Stalker"
-];
-
-// প্রতিটি ক্যাটাগরির ভেতরে থাকা .m3u ফাইলগুলোর নাম (আপনার ফোল্ডারে থাকা ফাইলের নাম অনুযায়ী এখানে বসাতে পারেন)
-const FOLDER_FILES = {
-    "Auto Update": ["playlist.m3u", "update.m3u"],
-    "Movies": ["movies.m3u", "cinema.m3u"],
-    "Skym3u.dev": ["skym3u.m3u"],
-    "Sports": ["sports.m3u", "live_sports.m3u"],
-    "Xtream & Stalker": ["xtream.m3u", "stalker.m3u"]
+window.onload = () => {
+    initPortal();
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    initCategoryTabs();
-});
+let allCategories = [];
 
-function initCategoryTabs() {
-    const tabContainer = document.getElementById('categoryTabsContainer');
-    if (!tabContainer) return;
+// Supabase থেকে ফোল্ডার স্ক্যান করে ডাইনামিক ক্যাটাগরি বাটন তৈরি করার ফাংশন
+async function initPortal() {
+    const tabsContainer = document.getElementById("categoryTabsContainer");
+    if (!tabsContainer) return;
     
-    tabContainer.innerHTML = '';
+    try {
+        let items = await fetchSupabaseFolder("");
+        
+        allCategories = items
+            .filter(item => item.id === null && item.name.toLowerCase() !== "images" && !item.name.startsWith('.'))
+            .map(item => item.name);
 
-    CATEGORIES.forEach((cat, index) => {
-        const tabButton = document.createElement('button');
-        // Tailwind স্টাইলিং সহ আগের ডিজাইন মেইনটেইন করা
-        tabButton.className = `px-4 py-2 rounded-xl text-sm font-semibold transition-all shrink-0 cursor-pointer ${
-            index === 0 
-                ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25' 
-                : 'bg-slate-800 text-slate-300 border border-slate-700/60 hover:bg-slate-700'
-        }`;
-        tabButton.innerText = cat;
-        tabButton.onclick = () => loadCategoryContent(cat, tabButton);
-        tabContainer.appendChild(tabButton);
-
-        // প্রথম ক্যাটাগরি ডিফল্ট লোড করা
-        if (index === 0) {
-            loadCategoryContent(cat, tabButton);
+        if (allCategories.length === 0) {
+            allCategories = ["Movies", "Sports", "Skym3u.dev"];
         }
+
+        tabsContainer.innerHTML = "";
+
+        // প্রথমে "All" বাটন তৈরি
+        let allBtn = document.createElement("button");
+        allBtn.className = "category-btn px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-500 text-slate-950 shadow-md transition-all shrink-0 cursor-pointer";
+        allBtn.innerText = "🌐 All";
+        allBtn.onclick = () => switchCategory("All", allBtn);
+        tabsContainer.appendChild(allBtn);
+
+        // সুপাবেস থেকে পাওয়া ফোল্ডারগুলোর জন্য ডাইনামিক বাটন তৈরি
+        allCategories.forEach(folderName => {
+            let btn = document.createElement("button");
+            btn.className = "category-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 border border-slate-700/60 hover:bg-slate-700 transition-all shrink-0 cursor-pointer";
+            btn.innerText = folderName;
+            btn.onclick = () => switchCategory(folderName, btn);
+            tabsContainer.appendChild(btn);
+        });
+
+        // ডিফল্টভাবে 'All' লোড করা
+        loadFiles("All");
+
+    } catch (error) {
+        console.error("Initialization error:", error);
+        allCategories = ["Movies", "Sports", "Skym3u.dev"];
+        tabsContainer.innerHTML = "";
+        
+        let allBtn = document.createElement("button");
+        allBtn.className = "category-btn px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-500 text-slate-950 shadow-md transition-all shrink-0 cursor-pointer";
+        allBtn.innerText = "🌐 All";
+        allBtn.onclick = () => switchCategory("All", allBtn);
+        tabsContainer.appendChild(allBtn);
+
+        allCategories.forEach(folderName => {
+            let btn = document.createElement("button");
+            btn.className = "category-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 border border-slate-700/60 hover:bg-slate-700 transition-all shrink-0 cursor-pointer";
+            btn.innerText = folderName;
+            btn.onclick = () => switchCategory(folderName, btn);
+            tabsContainer.appendChild(btn);
+        });
+
+        loadFiles("All");
+    }
+}
+
+// Supabase থেকে ফোল্ডার লিস্ট ফেচ করার হেল্পার ফাংশন
+async function fetchSupabaseFolder(prefixPath) {
+    let res = await fetch(STORAGE_LIST_URL, {
+        method: 'POST',
+        headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            prefix: prefixPath,
+            limit: 100,
+            offset: 0,
+            sortBy: { column: 'name', order: 'asc' }
+        })
+    });
+    if (!res.ok) throw new Error("Failed to fetch Supabase storage.");
+    return await res.json();
+}
+
+// ক্যাটাগরি সুইচ করার ফাংশন
+function switchCategory(categoryName, btnElement) {
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.classList.remove('bg-emerald-500', 'text-slate-950', 'shadow-md');
+        btn.classList.add('bg-slate-800', 'text-slate-300', 'border', 'border-slate-700/60', 'hover:bg-slate-700');
+    });
+
+    if (btnElement) {
+        btnElement.classList.remove('bg-slate-800', 'text-slate-300', 'border', 'border-slate-700/60', 'hover:bg-slate-700');
+        btnElement.classList.add('bg-emerald-500', 'text-slate-950', 'shadow-md');
+    }
+
+    const titleElem = document.getElementById('currentCategoryTitle');
+    if (titleElem) titleElem.innerText = categoryName;
+
+    loadFiles(categoryName);
+}
+
+// ফাইলের নামের একদম শেষের অংশ থেকে আন্ডারস্কোর দিয়ে আইডি বের করার ফাংশন (যেমন: Name_8.m3u থেকে 8)
+function extractHashId(filename) {
+    let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+    let match = nameWithoutExt.match(/_([a-zA-Z0-9]+)$/);
+    return match ? match[1].trim() : null;
+}
+
+// সুপাবেস ফাইল ও ছবি লোড করার মেইন ফাংশন
+async function loadFiles(targetCategory) {
+    const playlistContainer = document.getElementById("playlist");
+    if (!playlistContainer) return;
+
+    playlistContainer.innerHTML = `<p class="text-slate-400 text-center py-6 text-sm sm:text-base">Loading files...</p>`; 
+
+    try {
+        let categoriesToFetch = targetCategory === "All" ? allCategories : [targetCategory];
+        let collectedFiles = [];
+
+        let now = new Date();
+        let todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+        for (let catName of categoriesToFetch) {
+            try {
+                let items = await fetchSupabaseFolder(`${catName}/`);
+                
+                let validFiles = items.filter(item => {
+                    let nameLower = item.name.toLowerCase();
+                    let isImage = /\.(png|jpg|jpeg|webp)$/i.test(nameLower);
+                    let isFolder = (item.id === null);
+                    let isHidden = nameLower.startsWith('.');
+                    
+                    return item.id !== null && !isImage && !isHidden;
+                });
+
+                // সুপাবেস ফোল্ডারের ভেਤরের images ফোল্ডার হ্যান্ডেল করা
+                let imagesList = [];
+                let imgFolderItem = items.find(item => item.id === null && item.name.toLowerCase() === "images");
+                if (imgFolderItem) {
+                    let imgData = await fetchSupabaseFolder(`${catName}/images/`);
+                    imagesList = imgData.filter(i => i.id !== null && /\.(png|jpg|jpeg|webp)$/i.test(i.name));
+                }
+
+                // ইমেজগুলোর সঠিক ম্যাপ তৈরি করা ফাইলের শেষের আন্ডারস্কোর আইডি দিয়ে
+                let imagesMap = {};
+                for (let img of imagesList) {
+                    let hashId = extractHashId(img.name);
+                    let imgPublicUrl = `${STORAGE_URL}/${catName}/images/${img.name}`;
+                    if (hashId) {
+                        imagesMap[hashId] = {
+                            name: img.name,
+                            download_url: imgPublicUrl
+                        };
+                    }
+                }
+
+                for (let i = 0; i < validFiles.length; i++) {
+                    let file = validFiles[i];
+                    let fileUpdateTime = file.updated_at ? new Date(file.updated_at).getTime() : 0;
+                    let downloadUrl = `${STORAGE_URL}/${catName}/${file.name}`;
+                    
+                    let fileDateStr = "";
+                    if (fileUpdateTime > 0) {
+                        let cDate = new Date(fileUpdateTime);
+                        fileDateStr = `${cDate.getFullYear()}-${String(cDate.getMonth() + 1).padStart(2, '0')}-${String(cDate.getDate()).padStart(2, '0')}`;
+                    }
+
+                    let isToday = (fileDateStr === todayStr);
+
+                    // ফাইলের নাম থেকে শেষের আইডি বের করে সরাসরি ম্যাপ থেকে নির্দিষ্ট ছবিটি তুলে নেওয়া
+                    let fileHashId = extractHashId(file.name);
+                    let matchedImgObj = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : null;
+
+                    // যদি নির্দিষ্ট আইডি না মেলে, তবে ফলব্যাক হিসেবে প্রথম ছবি বা ডিফল্ট নেওয়া
+                    if (!matchedImgObj && imagesList.length > 0) {
+                        let fallbackImg = imagesList[i % imagesList.length];
+                        matchedImgObj = {
+                            name: fallbackImg.name,
+                            download_url: `${STORAGE_URL}/${catName}/images/${fallbackImg.name}`
+                        };
+                    }
+
+                    let matchedImgUrl = matchedImgObj ? matchedImgObj.download_url : "https://via.placeholder.com/300x160?text=No+Preview";
+                    
+                    // টাইটেল ক্লিন করার লজিক
+                    let rawNameToClean = matchedImgObj ? matchedImgObj.name : file.name;
+                    let nameWithoutExt = rawNameToClean.replace(/\.[^/.]+$/, "");
+                    let cleanBaseName = nameWithoutExt.replace(/_[a-zA-Z0-9]+$/, "");
+                    let titleText = cleanBaseName.replace(/[-_]/g, " ").trim();
+
+                    let extMatch = file.name.match(/\.[^/.]+$/);
+                    let fileExt = extMatch ? extMatch[0] : "";
+                    let nameWithoutFileExt = file.name.replace(/\.[^/.]+$/, "");
+                    let cleanFileName = nameWithoutFileExt.replace(/_[a-zA-Z0-9]+$/, "") + fileExt;
+
+                    collectedFiles.push({
+                        name: file.name,
+                        displayName: cleanFileName,
+                        download_url: downloadUrl,
+                        category: catName,
+                        image: matchedImgUrl,
+                        title: titleText || "Live Stream",
+                        timestamp: fileUpdateTime,
+                        isNew: isToday
+                    });
+                }
+            } catch (err) {
+                console.error(`Error in category ${catName}:`, err);
+            }
+        }
+
+        if (collectedFiles.length === 0) {
+            playlistContainer.innerHTML = `<p class="text-slate-400 text-center py-6 text-sm sm:text-base">No files found in this category.</p>`;
+            return;
+        }
+
+        collectedFiles.sort((a, b) => b.timestamp - a.timestamp);
+
+        playlistContainer.innerHTML = ""; 
+
+        collectedFiles.forEach(fileObj => {
+            let latestBadge = fileObj.isNew 
+                ? `<span class="bg-amber-500 text-slate-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow animate-pulse shrink-0 inline-flex items-center">✨ Latest</span>` 
+                : '';
+
+            let fileItem = `
+                <div class="bg-slate-700/40 hover:bg-slate-700/70 transition-all rounded-xl overflow-hidden flex flex-col sm:flex-row items-stretch border border-slate-600/40 shadow-sm mb-3">
+                    <!-- Thumbnail Image -->
+                    <div class="sm:w-48 h-36 sm:h-auto shrink-0 bg-slate-900 relative">
+                        <img src="${fileObj.image}" alt="${fileObj.title}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x160?text=Error'">
+                    </div>
+                    
+                    <!-- Content & Actions -->
+                    <div class="p-4 flex flex-col justify-between flex-grow gap-3">
+                        <div>
+                            <div class="flex items-start justify-between mb-1 gap-2 flex-wrap">
+                                <!-- Title -->
+                                <h3 class="font-bold text-slate-100 text-base sm:text-lg flex items-center gap-2 min-w-0 flex-1">
+                                    <span class="text-emerald-400 shrink-0">📺</span> 
+                                    <span class="truncate" title="${fileObj.title}">${fileObj.title}</span>
+                                </h3>
+                                <!-- Category Badge on Right -->
+                                <div class="flex items-center gap-1.5 shrink-0">
+                                    <span class="text-[10px] font-mono bg-slate-800 text-emerald-400 px-2.5 py-0.5 rounded border border-slate-700">${fileObj.category}</span>
+                                </div>
+                            </div>
+                            <!-- File Name & Latest Badge Side by Side -->
+                            <div class="flex items-center gap-2 flex-wrap text-xs text-slate-400">
+                                <span>ফাইল: <span class="text-slate-300 font-mono" title="${fileObj.name}">${fileObj.displayName}</span></span>
+                                ${latestBadge}
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 w-full sm:w-auto pt-2 border-t border-slate-600/30">
+                            <!-- Copy Link -->
+                            <button onclick="copyRawLink('${fileObj.download_url}', this)" class="flex-1 sm:flex-none bg-slate-600 hover:bg-slate-500 text-slate-200 font-medium px-3.5 py-2 rounded-lg text-xs sm:text-sm text-center transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shrink-0">
+                                🔗 Copy Link
+                            </button>
+                            <!-- Download -->
+                            <button onclick="downloadOriginalFile('${fileObj.download_url}', '${fileObj.name}')" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg text-xs sm:text-sm text-center transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shrink-0">
+                                📥 Download
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            playlistContainer.innerHTML += fileItem;
+        });
+
+    } catch (error) {
+        console.error("Error loading files:", error);
+        playlistContainer.innerHTML = `<p class="text-red-400 text-center py-6 text-sm sm:text-base">Could not load files. Please check repository configurations.</p>`;
+    }
+}
+
+// লিংক কপি করার ফাংশন
+function copyRawLink(url, buttonElement) {
+    navigator.clipboard.writeText(url).then(() => {
+        let originalText = buttonElement.innerHTML;
+        buttonElement.innerHTML = "✅ Copied!";
+        buttonElement.classList.remove("bg-slate-600", "hover:bg-slate-500");
+        buttonElement.classList.add("bg-sky-600", "hover:bg-sky-500");
+
+        setTimeout(() => {
+            buttonElement.innerHTML = originalText;
+            buttonElement.classList.remove("bg-sky-600", "hover:bg-sky-500");
+            buttonElement.classList.add("bg-slate-600", "hover:bg-slate-500");
+        }, 2000);
+    }).catch(err => {
+        alert("Failed to copy link.");
     });
 }
 
-function loadCategoryContent(categoryName, selectedButton) {
-    // ট্যাবের অ্যাক্টিভ ক্লাস ও ডিজাইন পরিবর্তন
-    const tabContainer = document.getElementById('categoryTabsContainer');
-    if (tabContainer) {
-        Array.from(tabContainer.children).forEach(btn => {
-            btn.className = 'px-4 py-2 rounded-xl text-sm font-semibold transition-all shrink-0 cursor-pointer bg-slate-800 text-slate-300 border border-slate-700/60 hover:bg-slate-700';
-        });
+// ফাইল ডাউনলোড করার ফাংশন
+async function downloadOriginalFile(url, filename) {
+    try {
+        let response = await fetch(url);
+        let blob = await response.blob();
+        let blobUrl = window.URL.createObjectURL(blob);
+        let a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+        window.open(url, '_blank');
     }
-    if (selectedButton) {
-        selectedButton.className = 'px-4 py-2 rounded-xl text-sm font-semibold transition-all shrink-0 cursor-pointer bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25';
-    }
-
-    // টাইটেল আপডেট করা
-    const currentTitleSpan = document.getElementById('currentCategoryTitle');
-    if (currentTitleSpan) {
-        currentTitleSpan.innerText = categoryName;
-    }
-
-    const playlistContainer = document.getElementById('playlist');
-    if (!playlistContainer) return;
-
-    playlistContainer.innerHTML = '<p class="text-slate-400 text-center py-6 text-sm sm:text-base">লোড হচ্ছে...</p>';
-
-    const files = FOLDER_FILES[categoryName] || [];
-
-    if (files.length === 0) {
-        playlistContainer.innerHTML = '<p class="text-slate-400 text-center py-6 text-sm sm:text-base">No files found in this category.</p>';
-        return;
-    }
-
-    playlistContainer.innerHTML = '';
-
-    files.forEach(fileName => {
-        const cleanTitle = fileName.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ").toUpperCase();
-        const filePubUrl = `${STORAGE_URL}/${encodeURIComponent(categoryName)}/${encodeURIComponent(fileName)}`;
-        const imagePubUrl = `${STORAGE_URL}/${encodeURIComponent(categoryName)}/images/${encodeURIComponent(fileName.replace(/\.[^/.]+$/, ""))}.png`;
-
-        const card = document.createElement('div');
-        card.className = 'bg-slate-900/80 border border-slate-700/50 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 hover:border-emerald-500/40 transition-all shadow-md';
-        
-        card.innerHTML = `
-            <div class="flex items-center gap-4 w-full sm:w-auto">
-                <div class="w-16 h-12 bg-slate-800 rounded-lg overflow-hidden shrink-0 border border-slate-700">
-                    <img src="${imagePubUrl}" onerror="this.src='https://via.placeholder.com/150?text=IPTV'" alt="${cleanTitle}" class="w-full h-full object-cover">
-                </div>
-                <div>
-                    <h3 class="text-sm sm:text-base font-bold text-slate-200">${cleanTitle}</h3>
-                    <p class="text-xs text-slate-400 mt-0.5">Category: ${categoryName}</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <a href="${filePubUrl}" target="_blank" class="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-semibold text-xs sm:text-sm rounded-lg transition-all text-center shadow-lg shadow-emerald-600/20">
-                    ডাউনলোড / প্লে করুন
-                </a>
-            </div>
-        `;
-        playlistContainer.appendChild(card);
-    });
 }
