@@ -1,6 +1,5 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-// আপনার Supabase প্রজেক্টের ক্রিপডেনশিয়াল
 const SUPABASE_URL = 'https://liljnnprtqwoimmsjuhy.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_1HibJOEynpqyB-xuwZnruw_CvwaA3Dd';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -13,7 +12,6 @@ window.onload = () => {
 
 let allCategories = [];
 
-// স্টোরেজ স্ক্যান করে ক্যাটাগরি বা ফোল্ডারগুলো বের করার ফাংশন
 async function initPortal() {
     const tabsContainer = document.getElementById("categoryTabsContainer");
     if (!tabsContainer) return;
@@ -35,14 +33,12 @@ async function initPortal() {
 
         tabsContainer.innerHTML = "";
 
-        // প্রথমে "All" বাটন তৈরি
         let allBtn = document.createElement("button");
         allBtn.className = "category-btn px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-500 text-slate-950 shadow-md transition-all shrink-0 cursor-pointer";
         allBtn.innerText = "🌐 All";
         allBtn.onclick = () => switchCategory("All", allBtn);
         tabsContainer.appendChild(allBtn);
 
-        // ফোল্ডারগুলোর জন্য ডাইনামিক বাটন তৈরি
         allCategories.forEach(folderName => {
             let btn = document.createElement("button");
             btn.className = "category-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 border border-slate-700/60 hover:bg-slate-700 transition-all shrink-0 cursor-pointer";
@@ -76,7 +72,6 @@ async function initPortal() {
     }
 }
 
-// ক্যাটাগরি সুইচ করার ফাংশন
 function switchCategory(categoryName, btnElement) {
     document.querySelectorAll('.category-btn').forEach(btn => {
         btn.classList.remove('bg-emerald-500', 'text-slate-950', 'shadow-md');
@@ -94,7 +89,6 @@ function switchCategory(categoryName, btnElement) {
     loadFiles(categoryName);
 }
 
-// ফাইলের বা ছবির নামের শেষাংশ থেকে আন্ডারস্কোর আইডি বের করার ফাংশন (যেমন: Name_8.m3u থেকে 8)
 function extractHashId(filename) {
     if (!filename) return null;
     let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
@@ -102,7 +96,6 @@ function extractHashId(filename) {
     return match ? match[1].trim().toLowerCase() : null;
 }
 
-// স্টোরেজ থেকে ফাইল ও ছবি লোড করার মেইন ফাংশন
 async function loadFiles(targetCategory) {
     const playlistContainer = document.getElementById("playlist");
     if (!playlistContainer) return;
@@ -118,7 +111,6 @@ async function loadFiles(targetCategory) {
 
         for (let catName of categoriesToFetch) {
             try {
-                // ১. মূল ক্যাটাগরি ফোল্ডারের ফাইল লিস্ট আনা
                 let { data: items, error } = await supabase.storage
                     .from(STORAGE_BUCKET)
                     .list(catName, { limit: 100 });
@@ -133,7 +125,6 @@ async function loadFiles(targetCategory) {
                     return !isImage && !isFolder && !isHidden && item.name !== "";
                 });
 
-                // ২. ক্যাটাগরির ভেতরের 'images' ফোল্ডারের ফাইল লিস্ট আনা
                 let imagesList = [];
                 let { data: imgData, error: imgError } = await supabase.storage
                     .from(STORAGE_BUCKET)
@@ -143,13 +134,16 @@ async function loadFiles(targetCategory) {
                     imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name.toLowerCase()));
                 }
 
-                // ৩. ছবির সঠিক পাবলিক URL সরাসরি স্ট্রিং আকারে তৈরি করা
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
                     
-                    // সরাসরি সুপাবেস পাবলিক স্টোরেজ URL ফরম্যাট
-                    let imgUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${encodeURIComponent(catName)}/images/${encodeURIComponent(img.name)}`;
+                    // Supabase SDK এর বিল্ট-ইন মেথড ব্যবহার করে সঠিক পাবলিক URL নেওয়া
+                    let { data: pubImg } = supabase.storage
+                        .from(STORAGE_BUCKET)
+                        .getPublicUrl(`${catName}/images/${img.name}`);
+
+                    let imgUrl = pubImg ? pubImg.publicUrl : "";
 
                     if (hashId) {
                         imagesMap[hashId] = {
@@ -159,11 +153,13 @@ async function loadFiles(targetCategory) {
                     }
                 }
 
-                // ৪. প্রতিটি ফাইলের সাথে আন্ডারস্কোর আইডি ম্যাচ করে সঠিক ছবি ও টাইটেল সেট করা
                 for (let i = 0; i < validFiles.length; i++) {
                     let file = validFiles[i];
                     
-                    let downloadUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${encodeURIComponent(catName)}/${encodeURIComponent(file.name)}`;
+                    let { data: pubFile } = supabase.storage
+                        .from(STORAGE_BUCKET)
+                        .getPublicUrl(`${catName}/${file.name}`);
+                    let downloadUrl = pubFile ? pubFile.publicUrl : "";
                     
                     let commitTime = file.updated_at ? new Date(file.updated_at).getTime() : 0;
                     
@@ -175,24 +171,23 @@ async function loadFiles(targetCategory) {
 
                     let isToday = (fileDateStr === todayStr);
 
-                    // ফাইলের নামের শেষের আন্ডারস্কোর আইডি বের করা
                     let fileHashId = extractHashId(file.name);
                     let matchedImgObj = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : null;
 
-                    // যদি আইডি দিয়ে সরাসরি ম্যাচ না করে, তবে ফোল্ডারের ইনডেক্স অনুযায়ী ছবি মেলানো
                     if (!matchedImgObj && imagesList.length > 0) {
                         let fallbackImg = imagesList[i % imagesList.length];
-                        let fallbackUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${encodeURIComponent(catName)}/images/${encodeURIComponent(fallbackImg.name)}`;
+                        let { data: pubFallback } = supabase.storage
+                            .from(STORAGE_BUCKET)
+                            .getPublicUrl(`${catName}/images/${fallbackImg.name}`);
 
                         matchedImgObj = {
                             name: fallbackImg.name,
-                            url: fallbackUrl
+                            url: pubFallback ? pubFallback.publicUrl : ""
                         };
                     }
 
                     let matchedImgUrl = matchedImgObj ? matchedImgObj.url : "";
                     
-                    // সুন্দর টাইটেল তৈরির লজিক
                     let rawNameToClean = matchedImgObj ? matchedImgObj.name : file.name;
                     let nameWithoutExt = rawNameToClean.replace(/\.[^/.]+$/, "");
                     let cleanBaseName = nameWithoutExt.replace(/_[a-zA-Z0-9]+$/, "");
@@ -228,15 +223,13 @@ async function loadFiles(targetCategory) {
 
         playlistContainer.innerHTML = ""; 
 
-        // কার্ড রেন্ডার করা এবং ছবি প্রিভিউ ঠিক করা
         collectedFiles.forEach((fileObj) => {
             let latestBadge = fileObj.isNew 
                 ? `<span class="bg-amber-500 text-slate-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow animate-pulse shrink-0 inline-flex items-center">✨ Latest</span>` 
                 : '';
 
-            // ছবি প্রিভিউ ট্যাগ (সরাসরি URL দিয়ে ইমেজ রেন্ডার করার সুনিশ্চিত ব্যবস্থা)
             let imageTag = fileObj.image 
-                ? `<img src="${fileObj.image}" alt="${fileObj.title}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://via.placeholder.com/300x160?text=Live+Stream';">`
+                ? `<img src="${fileObj.image}" alt="${fileObj.title}" class="w-full h-full object-cover" crossorigin="anonymous">`
                 : `<div class="w-full h-full flex items-center justify-center bg-slate-800 text-emerald-400 font-bold text-lg">📺 IPTV</div>`;
 
             let fileItem = document.createElement('div');
@@ -273,7 +266,6 @@ async function loadFiles(targetCategory) {
                 </div>
             `;
 
-            // কপি বাটন ইভেন্ট
             const copyBtn = fileItem.querySelector('.copy-btn');
             copyBtn.addEventListener('click', () => {
                 navigator.clipboard.writeText(fileObj.download_url).then(() => {
@@ -292,7 +284,6 @@ async function loadFiles(targetCategory) {
                 });
             });
 
-            // ডাউনলোড বাটন ইভেন্ট
             const downloadBtn = fileItem.querySelector('.download-btn');
             downloadBtn.addEventListener('click', async () => {
                 try {
