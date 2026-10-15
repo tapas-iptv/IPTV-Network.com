@@ -94,7 +94,7 @@ function switchCategory(categoryName, btnElement) {
     loadFiles(categoryName);
 }
 
-// ফাইলের নাম থেকে আইডি বের করার ফাংশন (যেমন: Name_8.m3u থেকে 8)
+// ফাইলের নাম থেকে আইডি বের করার ফাংশন
 function extractHashId(filename) {
     let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
     let match = nameWithoutExt.match(/_([a-zA-Z0-9]+)$/);
@@ -117,7 +117,7 @@ async function loadFiles(targetCategory) {
 
         for (let catName of categoriesToFetch) {
             try {
-                // ১. মূল ক্যাটাগরি ফোল্ডারের ফাইল লিস্ট আনা
+                // ১. মূল ফোল্ডারের ফাইল লিস্ট আনা
                 let { data: items, error } = await supabase.storage
                     .from(STORAGE_BUCKET)
                     .list(catName, { limit: 100 });
@@ -142,11 +142,10 @@ async function loadFiles(targetCategory) {
                     imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name.toLowerCase()));
                 }
 
-                // ৩. ছবিগুলোর একটি ম্যাপ তৈরি করা আইডি দিয়ে
+                // ৩. ছবিগুলোর ম্যাপ তৈরি করা
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
-                    // Supabase থেকে ছবির সঠিক পাবলিক ইউআরএল নেওয়ার পদ্ধতি
                     let { data: publicURLData } = supabase.storage
                         .from(STORAGE_BUCKET)
                         .getPublicUrl(`${catName}/images/${img.name}`);
@@ -159,11 +158,10 @@ async function loadFiles(targetCategory) {
                     }
                 }
 
-                // ৪. প্রতিটি ফাইলের জন্য ডেটা প্রসেস করা
+                // ৪. প্রতিটি ফাইলের ডেটা প্রসেস করা
                 for (let i = 0; i < validFiles.length; i++) {
                     let file = validFiles[i];
                     
-                    // ফাইলের সঠিক পাবলিক ডাউনলোড/র লিংক জেনারেট করা
                     let { data: publicURLData } = supabase.storage
                         .from(STORAGE_BUCKET)
                         .getPublicUrl(`${catName}/${file.name}`);
@@ -182,7 +180,6 @@ async function loadFiles(targetCategory) {
                     let fileHashId = extractHashId(file.name);
                     let matchedImgObj = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : null;
 
-                    // যদি আইডি না মেলে, তবে ক্যাটাগরির প্রথম ছবি বা ফলব্যাক ছবি নেওয়া
                     if (!matchedImgObj && imagesList.length > 0) {
                         let fallbackImg = imagesList[i % imagesList.length];
                         let { data: fbUrlData } = supabase.storage
@@ -232,91 +229,79 @@ async function loadFiles(targetCategory) {
 
         playlistContainer.innerHTML = ""; 
 
-        collectedFiles.forEach(fileObj => {
+        // ডাইনামিক কার্ড রেন্ডার করা এবং ইভেন্ট হ্যান্ডলার যুক্ত করা
+        collectedFiles.forEach((fileObj, index) => {
             let latestBadge = fileObj.isNew 
                 ? `<span class="bg-amber-500 text-slate-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow animate-pulse shrink-0 inline-flex items-center">✨ Latest</span>` 
                 : '';
 
-            // যদি ইমেজ লিংক না থাকে, তবে ডিফল্ট আইকন বা গ্রে ব্যাকগ্রাউন্ড দেখানোর ব্যবস্থা
             let imageTag = fileObj.image 
                 ? `<img src="${fileObj.image}" alt="${fileObj.title}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://via.placeholder.com/300x160?text=Live+Stream';">`
                 : `<div class="w-full h-full flex items-center justify-center bg-slate-800 text-emerald-400 font-bold text-lg">📺 IPTV</div>`;
 
-            let fileItem = `
-                <div class="bg-slate-700/40 hover:bg-slate-700/70 transition-all rounded-xl overflow-hidden flex flex-col sm:flex-row items-stretch border border-slate-600/40 shadow-sm mb-3">
-                    <!-- Thumbnail Image -->
-                    <div class="sm:w-48 h-36 sm:h-auto shrink-0 bg-slate-900 relative">
-                        ${imageTag}
+            let fileItem = document.createElement('div');
+            fileItem.className = "bg-slate-700/40 hover:bg-slate-700/70 transition-all rounded-xl overflow-hidden flex flex-col sm:flex-row items-stretch border border-slate-600/40 shadow-sm mb-3";
+            
+            fileItem.innerHTML = `
+                <div class="sm:w-48 h-36 sm:h-auto shrink-0 bg-slate-900 relative">
+                    ${imageTag}
+                </div>
+                <div class="p-4 flex flex-col justify-between flex-grow gap-3">
+                    <div>
+                        <div class="flex items-start justify-between mb-1 gap-2 flex-wrap">
+                            <h3 class="font-bold text-slate-100 text-base sm:text-lg flex items-center gap-2 min-w-0 flex-1">
+                                <span class="text-emerald-400 shrink-0">📺</span> 
+                                <span class="truncate" title="${fileObj.title}">${fileObj.title}</span>
+                            </h3>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <span class="text-[10px] font-mono bg-slate-800 text-emerald-400 px-2.5 py-0.5 rounded border border-slate-700">${fileObj.category}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap text-xs text-slate-400">
+                            <span>ফাইল: <span class="text-slate-300 font-mono" title="${fileObj.name}">${fileObj.displayName}</span></span>
+                            ${latestBadge}
+                        </div>
                     </div>
-                    
-                    <!-- Content & Actions -->
-                    <div class="p-4 flex flex-col justify-between flex-grow gap-3">
-                        <div>
-                            <div class="flex items-start justify-between mb-1 gap-2 flex-wrap">
-                                <!-- Title -->
-                                <h3 class="font-bold text-slate-100 text-base sm:text-lg flex items-center gap-2 min-w-0 flex-1">
-                                    <span class="text-emerald-400 shrink-0">📺</span> 
-                                    <span class="truncate" title="${fileObj.title}">${fileObj.title}</span>
-                                </h3>
-                                <!-- Category Badge on Right -->
-                                <div class="flex items-center gap-1.5 shrink-0">
-                                    <span class="text-[10px] font-mono bg-slate-800 text-emerald-400 px-2.5 py-0.5 rounded border border-slate-700">${fileObj.category}</span>
-                                </div>
-                            </div>
-                            <!-- File Name & Latest Badge Side by Side -->
-                            <div class="flex items-center gap-2 flex-wrap text-xs text-slate-400">
-                                <span>ফাইল: <span class="text-slate-300 font-mono" title="${fileObj.name}">${fileObj.displayName}</span></span>
-                                ${latestBadge}
-                            </div>
-                        </div>
-
-                        <div class="flex items-center gap-2 w-full sm:w-auto pt-2 border-t border-slate-600/30">
-                            <!-- Copy Link (সরাসরি র লিংক কপি করার জন্য) -->
-                            <button onclick="copyRawLink('${fileObj.download_url}', this)" class="flex-1 sm:flex-none bg-slate-600 hover:bg-slate-500 text-slate-200 font-medium px-3.5 py-2 rounded-lg text-xs sm:text-sm text-center transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shrink-0">
-                                🔗 Copy Link
-                            </button>
-                            <!-- Download (সরাসরি ফাইল ডাউনলোড করার জন্য) -->
-                            <button onclick="downloadOriginalFile('${fileObj.download_url}', '${fileObj.name}')" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg text-xs sm:text-sm text-center transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shrink-0">
-                                📥 Download
-                            </button>
-                        </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto pt-2 border-t border-slate-600/30">
+                        <button class="copy-btn flex-1 sm:flex-none bg-slate-600 hover:bg-slate-500 text-slate-200 font-medium px-3.5 py-2 rounded-lg text-xs sm:text-sm text-center transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shrink-0">
+                            🔗 Copy Link
+                        </button>
+                        <button class="download-btn flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg text-xs sm:text-sm text-center transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shrink-0">
+                            📥 Download
+                        </button>
                     </div>
                 </div>
             `;
-            playlistContainer.innerHTML += fileItem;
+
+            // বাটনে ক্লিক ইভেন্টগুলো সেফলি বাইন্ড করা
+            const copyBtn = fileItem.querySelector('.copy-btn');
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(fileObj.download_url).then(() => {
+                    let originalText = copyBtn.innerHTML;
+                    copyBtn.innerHTML = "✅ Copied!";
+                    copyBtn.classList.remove("bg-slate-600", "hover:bg-slate-500");
+                    copyBtn.classList.add("bg-sky-600", "hover:bg-sky-500");
+
+                    setTimeout(() => {
+                        copyBtn.innerHTML = originalText;
+                        copyBtn.classList.remove("bg-sky-600", "hover:bg-sky-500");
+                        copyBtn.classList.add("bg-slate-600", "hover:bg-slate-500");
+                    }, 2000);
+                }).catch(err => {
+                    alert("Failed to copy link.");
+                });
+            });
+
+            const downloadBtn = fileItem.querySelector('.download-btn');
+            downloadBtn.addEventListener('click', () => {
+                window.open(fileObj.download_url, '_blank');
+            });
+
+            playlistContainer.appendChild(fileItem);
         });
 
     } catch (error) {
         console.error("Error loading files from storage:", error);
         playlistContainer.innerHTML = `<p class="text-red-400 text-center py-6 text-sm sm:text-base">Could not load files from storage. Please check bucket configurations.</p>`;
     }
-}
-
-// র লিংক কপি করার ফাংশন
-function copyRawLink(url, buttonElement) {
-    navigator.clipboard.writeText(url).then(() => {
-        let originalText = buttonElement.innerHTML;
-        buttonElement.innerHTML = "✅ Copied!";
-        buttonElement.classList.remove("bg-slate-600", "hover:bg-slate-500");
-        buttonElement.classList.add("bg-sky-600", "hover:bg-sky-500");
-
-        setTimeout(() => {
-            buttonElement.innerHTML = originalText;
-            buttonElement.classList.remove("bg-sky-600", "hover:bg-sky-500");
-            buttonElement.classList.add("bg-slate-600", "hover:bg-slate-500");
-        }, 2000);
-    }).catch(err => {
-        alert("Failed to copy link.");
-    });
-}
-
-// ফাইল ডাউনলোড করার ফাংশন (সরাসরি টার্গেট লিংকে ট্রিগার করার জন্য)
-function downloadOriginalFile(url, filename) {
-    let a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.target = '_blank';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
 }
