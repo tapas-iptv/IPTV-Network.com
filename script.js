@@ -94,8 +94,9 @@ function switchCategory(categoryName, btnElement) {
     loadFiles(categoryName);
 }
 
-// ফাইলের নাম থেকে আন্ডারস্কোরের পরের আইডি বা হ্যাশ বের করার ফাংশন (যেমন: Name_8.m3u থেকে 8)
+// ফাইলের নাম থেকে আইডি বা হ্যাশ বের করার ফাংশন (যেমন: Name_8.m3u থেকে 8)
 function extractHashId(filename) {
+    if (!filename) return null;
     let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
     let match = nameWithoutExt.match(/_([a-zA-Z0-9]+)$/);
     return match ? match[1].trim().toLowerCase() : null;
@@ -142,17 +143,19 @@ async function loadFiles(targetCategory) {
                     imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name.toLowerCase()));
                 }
 
-                // ৩. ছবিগুলোর আইডি দিয়ে সঠিক পাবলিক ইউআরএল ম্যাপ তৈরি করা
+                // ৩. সরাসরি Supabase স্টোরেজের পাবলিক URL স্ট্রাকচার দিয়ে ইমেজ ম্যাপ তৈরি করা
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
-                    // Supabase থেকে নির্দিষ্ট সাব-ফোল্ডারের ছবির পাবলিক ইউআরএল জেনারেট করা
-                    let { data: publicURLData } = supabase.storage
-                        .from(STORAGE_BUCKET)
-                        .getPublicUrl(`${catName}/images/${img.name}`);
+                    
+                    // Supabase-এর সরাসরি রেন্ডারেবল পাবলিক URL (এনকোড করা পাথ সহ)
+                    let directPublicUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${encodeURIComponent(catName)}/images/${encodeURIComponent(img.name)}`;
 
                     if (hashId) {
-                        imagesMap[hashId] = publicURLData.publicUrl;
+                        imagesMap[hashId] = {
+                            name: img.name,
+                            url: directPublicUrl
+                        };
                     }
                 }
 
@@ -160,11 +163,9 @@ async function loadFiles(targetCategory) {
                 for (let i = 0; i < validFiles.length; i++) {
                     let file = validFiles[i];
                     
-                    let { data: publicURLData } = supabase.storage
-                        .from(STORAGE_BUCKET)
-                        .getPublicUrl(`${catName}/${file.name}`);
-
-                    let downloadUrl = publicURLData.publicUrl;
+                    // ফাইলের সরাসরি পাবলিক ডাউনলোড URL
+                    let downloadUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${encodeURIComponent(catName)}/${encodeURIComponent(file.name)}`;
+                    
                     let commitTime = file.updated_at ? new Date(file.updated_at).getTime() : 0;
                     
                     let fileDateStr = "";
@@ -177,20 +178,22 @@ async function loadFiles(targetCategory) {
 
                     // ফাইলের আইডি বের করে imagesMap থেকে হুবহু ছবি ম্যাচ করা
                     let fileHashId = extractHashId(file.name);
-                    let matchedImgUrl = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : "";
+                    let matchedImgObj = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : null;
 
-                    // যদি আইডি দিয়ে সরাসরি না মেলে, তবে ফলব্যাক হিসেবে ইনডেক্স অনুযায়ী ছবি নেওয়া
-                    if (!matchedImgUrl && imagesList.length > 0) {
+                    // যদি নির্দিষ্ট আইডি না মেলে, তবে ফলব্যাক হিসেবে ইনডেক্স অনুযায়ী ছবি নেওয়া
+                    if (!matchedImgObj && imagesList.length > 0) {
                         let fallbackImg = imagesList[i % imagesList.length];
-                        let { data: fbUrlData } = supabase.storage
-                            .from(STORAGE_BUCKET)
-                            .getPublicUrl(`${catName}/images/${fallbackImg.name}`);
-                        matchedImgUrl = fbUrlData.publicUrl;
+                        let fallbackUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${encodeURIComponent(catName)}/images/${encodeURIComponent(fallbackImg.name)}`;
+                        matchedImgObj = {
+                            name: fallbackImg.name,
+                            url: fallbackUrl
+                        };
                     }
 
-                    // টাইটেল তৈরির অংশ (আগের মতো নিখুঁত রাখা)
-                    let matchedImgObjName = imagesList.find(img => extractHashId(img.name) === fileHashId);
-                    let rawNameToClean = matchedImgObjName ? matchedImgObjName.name : file.name;
+                    let matchedImgUrl = matchedImgObj ? matchedImgObj.url : "";
+                    
+                    // টাইটেল তৈরির অংশ (যেটি আপনার অলরেডি কাজ করছে)
+                    let rawNameToClean = matchedImgObj ? matchedImgObj.name : file.name;
                     let nameWithoutExt = rawNameToClean.replace(/\.[^/.]+$/, "");
                     let cleanBaseName = nameWithoutExt.replace(/_[a-zA-Z0-9]+$/, "");
                     let titleText = cleanBaseName.replace(/[-_]/g, " ").trim();
@@ -231,7 +234,7 @@ async function loadFiles(targetCategory) {
                 ? `<span class="bg-amber-500 text-slate-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow animate-pulse shrink-0 inline-flex items-center">✨ Latest</span>` 
                 : '';
 
-            // ইমেজ ট্যাগ যেখানে ইমেজ ইউআরএল না থাকলে ফলব্যাক বা ডিফল্ট আইকন দেখাবে
+            // ইমেজ ট্যাগ যাতে ছবি লোড না হলে ডিফল্ট আইকন দেখায়
             let imageTag = fileObj.image 
                 ? `<img src="${fileObj.image}" alt="${fileObj.title}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://via.placeholder.com/300x160?text=Live+Stream';">`
                 : `<div class="w-full h-full flex items-center justify-center bg-slate-800 text-emerald-400 font-bold text-lg">📺 IPTV</div>`;
