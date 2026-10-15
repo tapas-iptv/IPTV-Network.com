@@ -1,11 +1,23 @@
 const DATA_USER = "Tapas-Creation"; 
 const DATA_REPO = "M3U-Live"; 
+const GITHUB_TOKEN = "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"; // আপনার গিটহাব টোকেনটি এখানে বসিয়ে দেবেন
 
 window.onload = () => {
     initPortal();
 };
 
 let allCategories = [];
+
+// টোকেন সহ সিকিউর ফেচ ফাংশন (আইপি লিমিট বা রেট ব্লক এড়ানোর জন্য)
+async function fetchWithAuth(url) {
+    let headers = {
+        'Accept': 'application/vnd.github.v3+json'
+    };
+    if (GITHUB_TOKEN && GITHUB_TOKEN !== "এখানে_আপনার_গিটহাব_টোকেনটি_বসাবেন") {
+        headers['Authorization'] = `token ${GITHUB_TOKEN}`;
+    }
+    return await fetch(url, { headers });
+}
 
 // রুট ফোল্ডার স্ক্যান করে ডাইনামিক ক্যাটাগরি বাটন তৈরি করার ফাংশন
 async function initPortal() {
@@ -14,9 +26,7 @@ async function initPortal() {
     
     try {
         const rootUrl = `https://api.github.com/repos/${DATA_USER}/${DATA_REPO}/contents`;
-        let res = await fetch(rootUrl, {
-            headers: { 'Accept': 'application/vnd.github.v3+json' }
-        });
+        let res = await fetchWithAuth(rootUrl);
         
         if (!res.ok) throw new Error("Failed to fetch repository root.");
         
@@ -96,9 +106,7 @@ function switchCategory(categoryName, btnElement) {
 async function getCommitTime(path) {
     try {
         let commitUrl = `https://api.github.com/repos/${DATA_USER}/${DATA_REPO}/commits?path=${encodeURIComponent(path)}&per_page=1`;
-        let res = await fetch(commitUrl, {
-            headers: { 'Accept': 'application/vnd.github.v3+json' }
-        });
+        let res = await fetchWithAuth(commitUrl);
         if (res.ok) {
             let commits = await res.json();
             if (commits && commits.length > 0) {
@@ -109,7 +117,7 @@ async function getCommitTime(path) {
     return 0;
 }
 
-// ফাইলের নামের একদম শেষের অংশ থেকে আন্ডারস্কোর দিয়ে আইডি বের করার ফাংশন (যেমন: Name_8.m3u থেকে 8)
+// ফাইলের নামের একদম শেষের অংশ থেকে আন্ডারস্কোর দিয়ে আইডি বের করার ফাংশন (যেমন: Name_8.m3u থেকে 8)
 function extractHashId(filename) {
     let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
     let match = nameWithoutExt.match(/_([a-zA-Z0-9]+)$/);
@@ -133,9 +141,7 @@ async function loadFiles(targetCategory) {
         for (let catName of categoriesToFetch) {
             try {
                 let folderUrl = `https://api.github.com/repos/${DATA_USER}/${DATA_REPO}/contents/${encodeURIComponent(catName)}`;
-                let res = await fetch(folderUrl, {
-                    headers: { 'Accept': 'application/vnd.github.v3+json' }
-                });
+                let res = await fetchWithAuth(folderUrl);
                 if (!res.ok) continue;
 
                 let items = await res.json();
@@ -152,16 +158,14 @@ async function loadFiles(targetCategory) {
                 let imagesList = [];
                 let imgFolder = items.find(item => item.type === "dir" && item.name.toLowerCase() === "images");
                 if (imgFolder) {
-                    let imgRes = await fetch(imgFolder.url, {
-                        headers: { 'Accept': 'application/vnd.github.v3+json' }
-                    });
+                    let imgRes = await fetchWithAuth(imgFolder.url);
                     if (imgRes.ok) {
                         let imgData = await imgRes.json();
                         imagesList = imgData.filter(i => i.type === 'file' && /\.(png|jpg|jpeg|webp)$/i.test(i.name));
                     }
                 }
 
-                // ইমেজগুলোর সঠিক ম্যাপ তৈরি করা ফাইলের শেষের আন্ডারস্কোর আইডি দিয়ে
+                // ইমেজগুলোর সঠিক ম্যাপ তৈরি করা ফাইলের শেষের আন্ডারস্কোর আইডি দিয়ে
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
@@ -183,7 +187,7 @@ async function loadFiles(targetCategory) {
                     });
                 }
 
-                // ফাইলগুলোকেও টাইম অনুযায়ী সাজানো (নতুন থেকে পুরোনো)
+                // ফাইলগুলোকেও টাইম অনুযায়ী সাজানো (নতুন থেকে পুরোনো)
                 filesWithTime.sort((a, b) => b.time - a.time);
 
                 for (let i = 0; i < filesWithTime.length; i++) {
@@ -200,11 +204,11 @@ async function loadFiles(targetCategory) {
 
                     let isToday = (fileDateStr === todayStr);
 
-                    // ফাইলের নাম থেকে শেষের আইডি বের করে সরাসরি ম্যাপ থেকে নির্দিষ্ট ছবিটি তুলে নেওয়া
+                    // ফাইলের নাম থেকে শেষের আইডি বের করে সরাসরি ম্যাপ থেকে নির্দিষ্ট ছবিটি তুলে নেওয়া
                     let fileHashId = extractHashId(file.name);
                     let matchedImgObj = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : null;
 
-                    // যদি নির্দিষ্ট আইডি না মেলে, তবে ফলব্যাক হিসেবে প্রথম ছবি বা ডিফল্ট নেওয়া
+                    // যদি নির্দিষ্ট আইডি না মেলে, তবে ফলব্যাক হিসেবে প্রথম ছবি বা ডিফল্ট নেওয়া
                     if (!matchedImgObj && imagesList.length > 0) {
                         let fallbackImg = imagesList[i % imagesList.length];
                         matchedImgObj = {
@@ -228,8 +232,8 @@ async function loadFiles(targetCategory) {
                     let cleanFileName = nameWithoutFileExt.replace(/_[a-zA-Z0-9]+$/, "") + fileExt;
 
                     collectedFiles.push({
-                        name: file.name,           // ডাউনলোডের জন্য আসল নাম
-                        displayName: cleanFileName, // স্ক্রিনে দেখানোর জন্য নাম (যেমন: Name.m3u, মাঝের মাইনাস বা ডেট অক্ষত থাকবে)
+                        name: file.name,            // ডাউনলোডের জন্য আসল নাম
+                        displayName: cleanFileName, // স্ক্রিনে দেখানোর জন্য নাম
                         download_url: downloadUrl,
                         category: catName,
                         image: matchedImgUrl,
