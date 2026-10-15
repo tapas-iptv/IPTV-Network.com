@@ -94,7 +94,7 @@ function switchCategory(categoryName, btnElement) {
     loadFiles(categoryName);
 }
 
-// ফাইলের নাম থেকে আইডি বের করার ফাংশন
+// ফাইলের নাম থেকে আইডি বের করার ফাংশন (যেমন: Name_8.m3u থেকে 8)
 function extractHashId(filename) {
     let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
     let match = nameWithoutExt.match(/_([a-zA-Z0-9]+)$/);
@@ -142,7 +142,7 @@ async function loadFiles(targetCategory) {
                     imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name.toLowerCase()));
                 }
 
-                // ৩. ছবিগুলোর ম্যাপ তৈরি করা
+                // ৩. ছবিগুলোর সঠিক পাবলিক ইউআরএল ম্যাপ তৈরি করা
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
@@ -151,10 +151,7 @@ async function loadFiles(targetCategory) {
                         .getPublicUrl(`${catName}/images/${img.name}`);
 
                     if (hashId) {
-                        imagesMap[hashId] = {
-                            name: img.name,
-                            download_url: publicURLData.publicUrl
-                        };
+                        imagesMap[hashId] = publicURLData.publicUrl;
                     }
                 }
 
@@ -178,23 +175,20 @@ async function loadFiles(targetCategory) {
                     let isToday = (fileDateStr === todayStr);
 
                     let fileHashId = extractHashId(file.name);
-                    let matchedImgObj = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : null;
+                    let matchedImgUrl = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : "";
 
-                    if (!matchedImgObj && imagesList.length > 0) {
+                    // যদি আইডি দিয়ে ছবি না মেলে, তবে প্রথম ছবিটি ফলব্যাক হিসেবে নেওয়া
+                    if (!matchedImgUrl && imagesList.length > 0) {
                         let fallbackImg = imagesList[i % imagesList.length];
                         let { data: fbUrlData } = supabase.storage
                             .from(STORAGE_BUCKET)
                             .getPublicUrl(`${catName}/images/${fallbackImg.name}`);
-
-                        matchedImgObj = {
-                            name: fallbackImg.name,
-                            download_url: fbUrlData.publicUrl
-                        };
+                        matchedImgUrl = fbUrlData.publicUrl;
                     }
 
-                    let matchedImgUrl = matchedImgObj ? matchedImgObj.download_url : "";
-                    
-                    let rawNameToClean = matchedImgObj ? matchedImgObj.name : file.name;
+                    // ছবি ফাইলের নাম থেকে টাইটেল তৈরি করা
+                    let matchedImgObjName = imagesList.find(img => extractHashId(img.name) === fileHashId);
+                    let rawNameToClean = matchedImgObjName ? matchedImgObjName.name : file.name;
                     let nameWithoutExt = rawNameToClean.replace(/\.[^/.]+$/, "");
                     let cleanBaseName = nameWithoutExt.replace(/_[a-zA-Z0-9]+$/, "");
                     let titleText = cleanBaseName.replace(/[-_]/g, " ").trim();
@@ -230,7 +224,7 @@ async function loadFiles(targetCategory) {
         playlistContainer.innerHTML = ""; 
 
         // ডাইনামিক কার্ড রেন্ডার করা এবং ইভেন্ট হ্যান্ডলার যুক্ত করা
-        collectedFiles.forEach((fileObj, index) => {
+        collectedFiles.forEach((fileObj) => {
             let latestBadge = fileObj.isNew 
                 ? `<span class="bg-amber-500 text-slate-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow animate-pulse shrink-0 inline-flex items-center">✨ Latest</span>` 
                 : '';
@@ -273,7 +267,7 @@ async function loadFiles(targetCategory) {
                 </div>
             `;
 
-            // বাটনে ক্লিক ইভেন্টগুলো সেফলি বাইন্ড করা
+            // কপি বাটনের ইভেন্ট
             const copyBtn = fileItem.querySelector('.copy-btn');
             copyBtn.addEventListener('click', () => {
                 navigator.clipboard.writeText(fileObj.download_url).then(() => {
@@ -292,9 +286,27 @@ async function loadFiles(targetCategory) {
                 });
             });
 
+            // ডাউনলোড বাটনের ইভেন্ট (সরাসরি ডাউনলোড করার জন্য ফেচ ব্লব মেথড)
             const downloadBtn = fileItem.querySelector('.download-btn');
-            downloadBtn.addEventListener('click', () => {
-                window.open(fileObj.download_url, '_blank');
+            downloadBtn.addEventListener('click', async () => {
+                try {
+                    downloadBtn.innerHTML = "⏳ Downloading...";
+                    let response = await fetch(fileObj.download_url);
+                    let blob = await response.blob();
+                    let blobUrl = window.URL.createObjectURL(blob);
+                    let a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = fileObj.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(blobUrl);
+                    downloadBtn.innerHTML = "📥 Download";
+                } catch (e) {
+                    // যদি ক্রস-অরিজিন পলিসির কারণে ফেচ ব্লক হয়, তবে সরাসরি ফলব্যাক হিসেবে ওপেন করবে
+                    window.open(fileObj.download_url, '_blank');
+                    downloadBtn.innerHTML = "📥 Download";
+                }
             });
 
             playlistContainer.appendChild(fileItem);
