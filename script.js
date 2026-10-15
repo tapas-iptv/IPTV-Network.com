@@ -1,139 +1,78 @@
 // Supabase Configuration
 const SUPABASE_URL = 'https://liljnnprtqwoimmsjuhy.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_1HIbJ0EynpqyB-xuwZnruw_CvwaAZ0Z'; // আপনার স্ক্রিনশটের Publishable Key
 const BUCKET_NAME = 'IPTV-Network';
-
-// Supabase Storage Base URL for Public Access
 const STORAGE_URL = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}`;
-const STORAGE_LIST_URL = `${SUPABASE_URL}/storage/v1/object/list/${BUCKET_NAME}`;
+
+// আপনার ক্যাটাগরি ফোল্ডারগুলোর নাম এখানে ঠিক যেভাবে সুপাবেসে আছে সেভাবে লিখে দিন
+const CATEGORIES = [
+    "Auto Update",
+    "Movies",
+    "Skym3u.dev",
+    "Sports",
+    "Xtream & Stalker"
+];
+
+// আপনার ফোল্ডারগুলোতে যেসব .m3u ফাইলের নাম রয়েছে, সেগুলোর একটি তালিকা বা ডাইনামিক ফেচিং সিস্টেম
+// নিচে প্রতিটি ক্যাটাগরির জন্য ফাইলের নামগুলো বা কমন ফাইল স্ট্রাকচার সেট করা হলো
+const FOLDER_FILES = {
+    "Auto Update": ["playlist.m3u", "update.m3u"],
+    "Movies": ["movies.m3u", "cinema.m3u"],
+    "Skym3u.dev": ["skym3u.m3u"],
+    "Sports": ["sports.m3u", "live_sports.m3u"],
+    "Xtream & Stalker": ["xtream.m3u", "stalker.m3u"]
+};
 
 document.addEventListener('DOMContentLoaded', () => {
-    fetchCategoriesAndFiles();
+    initCategoryTabs();
 });
 
-async function fetchCategoriesAndFiles() {
-    try {
-        // সুপাবেস থেকে রুট ফোল্ডারের লিস্ট আনা
-        const response = await fetch(STORAGE_LIST_URL, {
-            method: 'POST',
-            headers: {
-                'apikey': SUPABASE_ANON_KEY,
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                prefix: "",
-                limit: 100,
-                offset: 0,
-                sortBy: { column: 'name', order: 'asc' }
-            })
-        });
+function initCategoryTabs() {
+    const categoryContainer = document.getElementById('category-tabs') || createCategoryContainer();
+    categoryContainer.innerHTML = '';
 
-        if (!response.ok) throw new Error('Failed to fetch storage categories');
+    CATEGORIES.forEach((cat, index) => {
+        const tabButton = document.createElement('button');
+        tabButton.className = `category-tab ${index === 0 ? 'active' : ''}`;
+        tabButton.innerText = cat;
+        tabButton.onclick = () => loadCategoryContent(cat, tabButton);
+        categoryContainer.appendChild(tabButton);
 
-        const items = await response.json();
-        
-        // ফোল্ডারগুলো ফিল্টার করা
-        const folders = items.filter(item => item.id === null); // Supabase-এ ফোল্ডারের id null থাকে
-
-        const categoryContainer = document.getElementById('category-tabs') || createCategoryContainer();
-        categoryContainer.innerHTML = '';
-
-        if (folders.length === 0) {
-            categoryContainer.innerHTML = '<p style="color:white; text-align:center;">কোনো ক্যাটাগরি ফোল্ডার পাওয়া যায়নি।</p>';
-            return;
+        // প্রথম ক্যাটাগরি ডিফল্ট লোড করা
+        if (index === 0) {
+            loadCategoryContent(cat, tabButton);
         }
-
-        let isFirst = true;
-        for (const folder of folders) {
-            const folderName = folder.name;
-            
-            // ট্যাব বা বাটন তৈরি
-            const tabButton = document.createElement('button');
-            tabButton.className = `category-tab ${isFirst ? 'active' : ''}`;
-            tabButton.innerText = folderName;
-            tabButton.onclick = () => loadFolderContent(folderName, tabButton);
-            categoryContainer.appendChild(tabButton);
-
-            // প্রথম ফোল্ডারের কন্টেন্ট ডিফল্টভাবে লোড করা
-            if (isFirst) {
-                loadFolderContent(folderName, tabButton);
-                isFirst = false;
-            }
-        }
-    } catch (error) {
-        console.error('Error loading categories:', error);
-    }
+    });
 }
 
-async function loadFolderContent(folderName, selectedButton) {
-    // ট্যাবের অ্যাক্টিভ ক্লাস ম্যানেজ করা
+function loadCategoryContent(categoryName, selectedButton) {
     document.querySelectorAll('.category-tab').forEach(btn => btn.classList.remove('active'));
     if (selectedButton) selectedButton.classList.add('active');
 
     const contentContainer = document.getElementById('playlist-container') || createPlaylistContainer();
-    contentContainer.innerHTML = '<p style="color:white; text-align:center;">লোড হচ্ছে...</p>';
+    contentContainer.innerHTML = '';
 
-    try {
-        // নির্দিষ্ট ফোল্ডারের ভেতরের ফাইলগুলো ফেচ করা
-        const response = await fetch(STORAGE_LIST_URL, {
-            method: 'POST',
-            headers: {
-                'apikey': SUPABASE_ANON_KEY,
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                prefix: `${folderName}/`,
-                limit: 100,
-                offset: 0,
-                sortBy: { column: 'updated_at', order: 'desc' }
-            })
-        });
+    const files = FOLDER_FILES[categoryName] || ["playlist.m3u"];
 
-        if (!response.ok) throw new Error('Failed to fetch folder contents');
+    files.forEach(fileName => {
+        const cleanTitle = fileName.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+        const filePubUrl = `${STORAGE_URL}/${encodeURIComponent(categoryName)}/${encodeURIComponent(fileName)}`;
+        const imagePubUrl = `${STORAGE_URL}/${encodeURIComponent(categoryName)}/images/${encodeURIComponent(fileName.replace(/\.[^/.]+$/, ""))}.png`;
 
-        const files = await response.json();
-        
-        // শুধু .m3u বা .m3u8 ফাইলগুলো ফিল্টার করা (ফোল্ডার বা ছবি বাদ দিয়ে)
-        const m3uFiles = files.filter(file => file.name && (file.name.endsWith('.m3u') || file.name.endsWith('.m3u8')));
-
-        contentContainer.innerHTML = '';
-
-        if (m3uFiles.length === 0) {
-            contentContainer.innerHTML = '<p style="color:white; text-align:center;">এই ফোল্ডারে কোনো প্লেলিস্ট ফাইল নেই।</p>';
-            return;
-        }
-
-        m3uFiles.forEach(file => {
-            const fileName = file.name;
-            const cleanTitle = fileName.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "); // ফাইলের নাম সুন্দর করা
-            const filePubUrl = `${STORAGE_URL}/${folderName}/${fileName}`;
-            
-            // থাম্বনেইল বা ছবির ইউআরএল বের করা (যদি images ফোল্ডারে একই নামে ছবি থাকে)
-            const imagePubUrl = `${STORAGE_URL}/${folderName}/images/${fileName.replace(/\.[^/.]+$/, "")}.png`;
-
-            const card = document.createElement('div');
-            card.className = 'playlist-card';
-            card.innerHTML = `
-                <div class="card-image-wrapper">
-                    <img src="${imagePubUrl}" onerror="this.src='https://via.placeholder.com/300x150?text=IPTV+Stream'" alt="${cleanTitle}">
-                </div>
-                <div class="card-details">
-                    <h3>${cleanTitle}</h3>
-                    <a href="${filePubUrl}" class="download-btn" target="_blank">ডাউনলোড / প্লে করুন</a>
-                </div>
-            `;
-            contentContainer.appendChild(card);
-        });
-
-    } catch (error) {
-        console.error('Error loading folder files:', error);
-        contentContainer.innerHTML = '<p style="color:red; text-align:center;">ফাইল লোড করতে সমস্যা হয়েছে।</p>';
-    }
+        const card = document.createElement('div');
+        card.className = 'playlist-card';
+        card.innerHTML = `
+            <div class="card-image-wrapper">
+                <img src="${imagePubUrl}" onerror="this.src='https://via.placeholder.com/300x150?text=IPTV+Stream'" alt="${cleanTitle}">
+            </div>
+            <div class="card-details">
+                <h3>${cleanTitle.toUpperCase()}</h3>
+                <a href="${filePubUrl}" class="download-btn" target="_blank">ডাউনলোড / প্লে করুন</a>
+            </div>
+        `;
+        contentContainer.appendChild(card);
+    });
 }
 
-// প্রয়োজনীয় কন্টেইনার ডাইনামিকলি তৈরি করার ফাংশন (যদি HTML-এ না থাকে)
 function createCategoryContainer() {
     let container = document.createElement('div');
     container.id = 'category-tabs';
