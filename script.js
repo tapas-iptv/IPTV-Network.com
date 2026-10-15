@@ -1,11 +1,12 @@
-// Supabase Client Initialization using Official SDK
+// Supabase Configuration
 const SUPABASE_URL = 'https://liljnnprtqwoimmsjuhy.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_1HibJOEynpqyB-xuwZnruw_CvwaA3Dd';
 const BUCKET_NAME = 'IPTV-Network';
 
-// Supabase ক্লায়েন্ট তৈরি (অফিশিয়াল SDK ব্যবহার করে)
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const STORAGE_URL = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}`;
+const STORAGE_LIST_URL = `${SUPABASE_URL}/storage/v1/object/list/${BUCKET_NAME}`;
 
+// সুপাবেসের ফোল্ডারগুলোর নাম
 let allCategories = [
     "Auto Update",
     "Movies",
@@ -31,7 +32,7 @@ function initPortal() {
     allBtn.onclick = () => switchCategory("All", allBtn);
     tabsContainer.appendChild(allBtn);
 
-    // ফোল্ডারগুলোর জন্য বাটন তৈরি
+    // ক্যাটাগরি বাটনগুলো তৈরি
     allCategories.forEach(folderName => {
         let btn = document.createElement("button");
         btn.className = "category-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 border border-slate-700/60 hover:bg-slate-700 transition-all shrink-0 cursor-pointer";
@@ -40,11 +41,29 @@ function initPortal() {
         tabsContainer.appendChild(btn);
     });
 
-    // ডিফল্টভাবে 'All' লোড করা
     loadFiles("All");
 }
 
-// ক্যাটাগরি সুইচ করার ফাংশন
+// Supabase REST API দিয়ে ফাইল লিস্ট আনার সঠিক ফাংশন
+async function fetchSupabaseFolder(prefixPath) {
+    let res = await fetch(STORAGE_LIST_URL, {
+        method: 'POST',
+        headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            prefix: prefixPath,
+            limit: 100,
+            offset: 0,
+            sortBy: { column: 'name', order: 'asc' }
+        })
+    });
+    if (!res.ok) throw new Error("Failed to fetch Supabase storage.");
+    return await res.json();
+}
+
 function switchCategory(categoryName, btnElement) {
     document.querySelectorAll('.category-btn').forEach(btn => {
         btn.classList.remove('bg-emerald-500', 'text-slate-950', 'shadow-md');
@@ -62,14 +81,12 @@ function switchCategory(categoryName, btnElement) {
     loadFiles(categoryName);
 }
 
-// ফাইলের নাম থেকে আইডি এক্সট্রাক্ট করার ফাংশন
 function extractHashId(filename) {
     let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
     let match = nameWithoutExt.match(/_([a-zA-Z0-9]+)$/);
     return match ? match[1].trim() : null;
 }
 
-// Supabase SDK ব্যবহার করে ফাইল ও ছবি লোড করার মেইন ফাংশন
 async function loadFiles(targetCategory) {
     const playlistContainer = document.getElementById("playlist");
     if (!playlistContainer) return;
@@ -85,49 +102,30 @@ async function loadFiles(targetCategory) {
 
         for (let catName of categoriesToFetch) {
             try {
-                // সুপাবেস SDK দিয়ে ফোল্ডারের ফাইল লিস্ট আনা
-                const { data: fileList, error } = await supabaseClient.storage
-                    .from(BUCKET_NAME)
-                    .list(`${catName}/`, {
-                        limit: 100,
-                        sortBy: { column: 'name', order: 'asc' }
-                    });
-
-                if (error) throw error;
-                if (!fileList) continue;
-
-                let validFiles = fileList.filter(item => {
+                let items = await fetchSupabaseFolder(`${catName}/`);
+                
+                let validFiles = items.filter(item => {
                     let nameLower = item.name.toLowerCase();
                     let isImage = /\.(png|jpg|jpeg|webp)$/i.test(nameLower);
                     let isHidden = nameLower.startsWith('.');
+                    
                     return item.name.includes('.') && !isImage && !isHidden;
                 });
 
-                // সুপাবেস SDK দিয়ে images ফোল্ডারের ফাইল লিস্ট আনা
                 let imagesList = [];
                 try {
-                    const { data: imgData } = await supabaseClient.storage
-                        .from(BUCKET_NAME)
-                        .list(`${catName}/images/`, {
-                            limit: 100,
-                            sortBy: { column: 'name', order: 'asc' }
-                        });
-                    if (imgData) {
-                        imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name));
-                    }
+                    let imgData = await fetchSupabaseFolder(`${catName}/images/`);
+                    imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name));
                 } catch (e) {}
 
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
-                    let { data: publicImgUrl } = supabaseClient.storage
-                        .from(BUCKET_NAME)
-                        .getPublicUrl(`${catName}/images/${img.name}`);
-                    
+                    let imgPublicUrl = `${STORAGE_URL}/${catName}/images/${img.name}`;
                     if (hashId) {
                         imagesMap[hashId] = {
                             name: img.name,
-                            download_url: publicImgUrl.publicUrl
+                            download_url: imgPublicUrl
                         };
                     }
                 }
@@ -135,11 +133,7 @@ async function loadFiles(targetCategory) {
                 for (let i = 0; i < validFiles.length; i++) {
                     let file = validFiles[i];
                     let fileUpdateTime = file.updated_at ? new Date(file.updated_at).getTime() : 0;
-                    
-                    let { data: publicFileUrl } = supabaseClient.storage
-                        .from(BUCKET_NAME)
-                        .getPublicUrl(`${catName}/${file.name}`);
-                    let downloadUrl = publicFileUrl.publicUrl;
+                    let downloadUrl = `${STORAGE_URL}/${catName}/${file.name}`;
                     
                     let fileDateStr = "";
                     if (fileUpdateTime > 0) {
@@ -154,13 +148,9 @@ async function loadFiles(targetCategory) {
 
                     if (!matchedImgObj && imagesList.length > 0) {
                         let fallbackImg = imagesList[i % imagesList.length];
-                        let { data: fallbackPubUrl } = supabaseClient.storage
-                            .from(BUCKET_NAME)
-                            .getPublicUrl(`${catName}/images/${fallbackImg.name}`);
-
                         matchedImgObj = {
                             name: fallbackImg.name,
-                            download_url: fallbackPubUrl.publicUrl
+                            download_url: `${STORAGE_URL}/${catName}/images/${fallbackImg.name}`
                         };
                     }
 
