@@ -1,7 +1,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
 // আপনার Supabase প্রজেক্টের ক্রিপডেনশিয়াল এখানে বসান
-const SUPABASE_URL = 'sb_publishable_1HibJOEynpqyB-xuwZnruw_CvwaA3Dd';
+const SUPABASE_URL = 'https://liljnnprtqwoimmsjuhy.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_1HibJOEynpqyB-xuwZnruw_CvwaA3Dd';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
