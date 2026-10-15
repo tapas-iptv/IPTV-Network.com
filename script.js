@@ -13,7 +13,7 @@ async function fetchWithAuth(url) {
     let headers = {
         'Accept': 'application/vnd.github.v3+json'
     };
-    if (GITHUB_TOKEN && GITHUB_TOKEN !== "এখানে_আপনার_গিটহাব_টোকেনটি_বসাবেন") {
+    if (GITHUB_TOKEN && GITHUB_TOKEN !== "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") {
         headers['Authorization'] = `token ${GITHUB_TOKEN}`;
     }
     return await fetch(url, { headers });
