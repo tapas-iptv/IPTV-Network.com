@@ -1,6 +1,5 @@
 const DATA_USER = "Tapas-Creation"; 
 const DATA_REPO = "M3U-Live"; 
-const GITHUB_TOKEN = "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"; // Apnar token-ti ekhane dewa ache
 
 window.onload = () => {
     initPortal();
@@ -8,25 +7,16 @@ window.onload = () => {
 
 let allCategories = [];
 
-// Token soho secure fetch helper function
-async function fetchWithAuth(url) {
-    let headers = {
-        'Accept': 'application/vnd.github.v3+json'
-    };
-    if (GITHUB_TOKEN) {
-        headers['Authorization'] = `token ${GITHUB_TOKEN}`;
-    }
-    return await fetch(url, { headers });
-}
-
-// Root folder scan kore dynamic category button toiri korar function
+// রুট ফোল্ডার স্ক্যান করে ডাইনামিক ক্যাটাগরি বাটন তৈরি করার ফাংশন
 async function initPortal() {
     const tabsContainer = document.getElementById("categoryTabsContainer");
     if (!tabsContainer) return;
     
     try {
         const rootUrl = `https://api.github.com/repos/${DATA_USER}/${DATA_REPO}/contents`;
-        let res = await fetchWithAuth(rootUrl);
+        let res = await fetch(rootUrl, {
+            headers: { 'Accept': 'application/vnd.github.v3+json' }
+        });
         
         if (!res.ok) throw new Error("Failed to fetch repository root.");
         
@@ -42,14 +32,14 @@ async function initPortal() {
 
         tabsContainer.innerHTML = "";
 
-        // Prothome "All" button toiri
+        // প্রথমে "All" বাটন তৈরি
         let allBtn = document.createElement("button");
         allBtn.className = "category-btn px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-500 text-slate-950 shadow-md transition-all shrink-0 cursor-pointer";
         allBtn.innerText = "🌐 All";
         allBtn.onclick = () => switchCategory("All", allBtn);
         tabsContainer.appendChild(allBtn);
 
-        // Github theke paoya folder-gulo jonno dynamic button toiri
+        // গিটহাব থেকে পাওয়া ফোল্ডারগুলোর জন্য ডাইনামিক বাটন তৈরি
         allCategories.forEach(folderName => {
             let btn = document.createElement("button");
             btn.className = "category-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 border border-slate-700/60 hover:bg-slate-700 transition-all shrink-0 cursor-pointer";
@@ -58,7 +48,7 @@ async function initPortal() {
             tabsContainer.appendChild(btn);
         });
 
-        // Default-vabe 'All' load kora
+        // ডিফল্টভাবে 'All' লোড করা
         loadFiles("All");
 
     } catch (error) {
@@ -84,7 +74,7 @@ async function initPortal() {
     }
 }
 
-// Category switch korar function
+// ক্যাটাগরি সুইচ করার ফাংশন
 function switchCategory(categoryName, btnElement) {
     document.querySelectorAll('.category-btn').forEach(btn => {
         btn.classList.remove('bg-emerald-500', 'text-slate-950', 'shadow-md');
@@ -102,11 +92,13 @@ function switchCategory(categoryName, btnElement) {
     loadFiles(categoryName);
 }
 
-// Commit ba upload time ber korar function
+// কমিট বা আপলোড টাইম বের করার ফাংশন
 async function getCommitTime(path) {
     try {
         let commitUrl = `https://api.github.com/repos/${DATA_USER}/${DATA_REPO}/commits?path=${encodeURIComponent(path)}&per_page=1`;
-        let res = await fetchWithAuth(commitUrl);
+        let res = await fetch(commitUrl, {
+            headers: { 'Accept': 'application/vnd.github.v3+json' }
+        });
         if (res.ok) {
             let commits = await res.json();
             if (commits && commits.length > 0) {
@@ -117,14 +109,14 @@ async function getCommitTime(path) {
     return 0;
 }
 
-// File-er namer ekdom sesh ongsho theke underscore diye ID ber korar function
+// ফাইলের নামের একদম শেষের অংশ থেকে আন্ডারস্কোর দিয়ে আইডি বের করার ফাংশন (যেমন: Name_8.m3u থেকে 8)
 function extractHashId(filename) {
     let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
     let match = nameWithoutExt.match(/_([a-zA-Z0-9]+)$/);
     return match ? match[1].trim() : null;
 }
 
-// File o chobi load korar main function
+// ফাইল ও ছবি লোড করার মেইন ফাংশন
 async function loadFiles(targetCategory) {
     const playlistContainer = document.getElementById("playlist");
     if (!playlistContainer) return;
@@ -141,7 +133,9 @@ async function loadFiles(targetCategory) {
         for (let catName of categoriesToFetch) {
             try {
                 let folderUrl = `https://api.github.com/repos/${DATA_USER}/${DATA_REPO}/contents/${encodeURIComponent(catName)}`;
-                let res = await fetchWithAuth(folderUrl);
+                let res = await fetch(folderUrl, {
+                    headers: { 'Accept': 'application/vnd.github.v3+json' }
+                });
                 if (!res.ok) continue;
 
                 let items = await res.json();
@@ -158,14 +152,16 @@ async function loadFiles(targetCategory) {
                 let imagesList = [];
                 let imgFolder = items.find(item => item.type === "dir" && item.name.toLowerCase() === "images");
                 if (imgFolder) {
-                    let imgRes = await fetchWithAuth(imgFolder.url);
+                    let imgRes = await fetch(imgFolder.url, {
+                        headers: { 'Accept': 'application/vnd.github.v3+json' }
+                    });
                     if (imgRes.ok) {
                         let imgData = await imgRes.json();
                         imagesList = imgData.filter(i => i.type === 'file' && /\.(png|jpg|jpeg|webp)$/i.test(i.name));
                     }
                 }
 
-                // Image-gulo sothik map toiri kora
+                // ইমেজগুলোর সঠিক ম্যাপ তৈরি করা ফাইলের শেষের আন্ডারস্কোর আইডি দিয়ে
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
@@ -177,6 +173,7 @@ async function loadFiles(targetCategory) {
                     }
                 }
 
+                // প্রতিটি ফাইলের কমিট টাইম বের করা
                 let filesWithTime = [];
                 for (let file of validFiles) {
                     let commitTime = await getCommitTime(`${catName}/${file.name}`);
@@ -186,6 +183,7 @@ async function loadFiles(targetCategory) {
                     });
                 }
 
+                // ফাইলগুলোকেও টাইম অনুযায়ী সাজানো (নতুন থেকে পুরোনো)
                 filesWithTime.sort((a, b) => b.time - a.time);
 
                 for (let i = 0; i < filesWithTime.length; i++) {
@@ -202,9 +200,11 @@ async function loadFiles(targetCategory) {
 
                     let isToday = (fileDateStr === todayStr);
 
+                    // ফাইলের নাম থেকে শেষের আইডি বের করে সরাসরি ম্যাপ থেকে নির্দিষ্ট ছবিটি তুলে নেওয়া
                     let fileHashId = extractHashId(file.name);
                     let matchedImgObj = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : null;
 
+                    // যদি নির্দিষ্ট আইডি না মেলে, তবে ফলব্যাক হিসেবে প্রথম ছবি বা ডিফল্ট নেওয়া
                     if (!matchedImgObj && imagesList.length > 0) {
                         let fallbackImg = imagesList[i % imagesList.length];
                         matchedImgObj = {
@@ -215,19 +215,21 @@ async function loadFiles(targetCategory) {
 
                     let matchedImgUrl = matchedImgObj ? matchedImgObj.download_url : "https://via.placeholder.com/300x160?text=No+Preview";
                     
+                    // টাইটেল ক্লিন করার লজিক
                     let rawNameToClean = matchedImgObj ? matchedImgObj.name : file.name;
                     let nameWithoutExt = rawNameToClean.replace(/\.[^/.]+$/, "");
                     let cleanBaseName = nameWithoutExt.replace(/_[a-zA-Z0-9]+$/, "");
                     let titleText = cleanBaseName.replace(/[-_]/g, " ").trim();
 
+                    // ফাইলের প্রদর্শিত নাম (displayName) থেকে শুধুমাত্র এক্সটেনশন রেখে শেষের আন্ডারস্কোর ট্যাগটি (যেমন _8) রিমুভ করা
                     let extMatch = file.name.match(/\.[^/.]+$/);
                     let fileExt = extMatch ? extMatch[0] : "";
                     let nameWithoutFileExt = file.name.replace(/\.[^/.]+$/, "");
                     let cleanFileName = nameWithoutFileExt.replace(/_[a-zA-Z0-9]+$/, "") + fileExt;
 
                     collectedFiles.push({
-                        name: file.name,
-                        displayName: cleanFileName,
+                        name: file.name,           // ডাউনলোডের জন্য আসল নাম
+                        displayName: cleanFileName, // স্ক্রিনে দেখানোর জন্য নাম (যেমন: Name.m3u, মাঝের মাইনাস বা ডেট অক্ষত থাকবে)
                         download_url: downloadUrl,
                         category: catName,
                         image: matchedImgUrl,
@@ -257,21 +259,26 @@ async function loadFiles(targetCategory) {
 
             let fileItem = `
                 <div class="bg-slate-700/40 hover:bg-slate-700/70 transition-all rounded-xl overflow-hidden flex flex-col sm:flex-row items-stretch border border-slate-600/40 shadow-sm mb-3">
+                    <!-- Thumbnail Image -->
                     <div class="sm:w-48 h-36 sm:h-auto shrink-0 bg-slate-900 relative">
                         <img src="${fileObj.image}" alt="${fileObj.title}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x160?text=Error'">
                     </div>
                     
+                    <!-- Content & Actions -->
                     <div class="p-4 flex flex-col justify-between flex-grow gap-3">
                         <div>
                             <div class="flex items-start justify-between mb-1 gap-2 flex-wrap">
+                                <!-- Title -->
                                 <h3 class="font-bold text-slate-100 text-base sm:text-lg flex items-center gap-2 min-w-0 flex-1">
                                     <span class="text-emerald-400 shrink-0">📺</span> 
                                     <span class="truncate" title="${fileObj.title}">${fileObj.title}</span>
                                 </h3>
+                                <!-- Category Badge on Right -->
                                 <div class="flex items-center gap-1.5 shrink-0">
                                     <span class="text-[10px] font-mono bg-slate-800 text-emerald-400 px-2.5 py-0.5 rounded border border-slate-700">${fileObj.category}</span>
                                 </div>
                             </div>
+                            <!-- File Name & Latest Badge Side by Side -->
                             <div class="flex items-center gap-2 flex-wrap text-xs text-slate-400">
                                 <span>ফাইল: <span class="text-slate-300 font-mono" title="${fileObj.name}">${fileObj.displayName}</span></span>
                                 ${latestBadge}
@@ -279,9 +286,11 @@ async function loadFiles(targetCategory) {
                         </div>
 
                         <div class="flex items-center gap-2 w-full sm:w-auto pt-2 border-t border-slate-600/30">
+                            <!-- Copy Link -->
                             <button onclick="copyRawLink('${fileObj.download_url}', this)" class="flex-1 sm:flex-none bg-slate-600 hover:bg-slate-500 text-slate-200 font-medium px-3.5 py-2 rounded-lg text-xs sm:text-sm text-center transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shrink-0">
                                 🔗 Copy Link
-                          </button>
+                            </button>
+                            <!-- Download -->
                             <button onclick="downloadOriginalFile('${fileObj.download_url}', '${fileObj.name}')" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg text-xs sm:text-sm text-center transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shrink-0">
                                 📥 Download
                             </button>
@@ -298,6 +307,7 @@ async function loadFiles(targetCategory) {
     }
 }
 
+// লিংক কপি করার ফাংশন
 function copyRawLink(url, buttonElement) {
     navigator.clipboard.writeText(url).then(() => {
         let originalText = buttonElement.innerHTML;
@@ -315,6 +325,7 @@ function copyRawLink(url, buttonElement) {
     });
 }
 
+// ফাইল ডাউনলোড করার ফাংশন
 async function downloadOriginalFile(url, filename) {
     try {
         let response = await fetch(url);
