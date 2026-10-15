@@ -12,30 +12,48 @@ window.onload = () => {
 
 let allCategories = [];
 
-// সুপাবেস থেকে শতভাগ ডাইনামিক ক্যাটাগরি বাটন তৈরি করার ফাংশন
+// সুপাবেস থেকে শতভাগ ডাইনামিকলি রুট ফোল্ডার স্ক্যান করার ফাংশন (কোনো হার্ডকোডিং নেই)
 async function initPortal() {
     const tabsContainer = document.getElementById("categoryTabsContainer");
     if (!tabsContainer) return;
     
     try {
-        let items = await fetchSupabaseFolder("");
+        // সুপাবেস রুট থেকে ফোল্ডার ও ফাইল ফেচ করা
+        let response = await fetch(STORAGE_LIST_URL, {
+            method: 'POST',
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache'
+            },
+            body: JSON.stringify({
+                prefix: "",
+                limit: 100,
+                offset: 0,
+                sortBy: { column: 'name', order: 'asc' }
+            })
+        });
+
+        if (!response.ok) throw new Error("Failed to fetch Supabase storage root.");
+
+        let items = await response.json();
         
-        // সুপাবেসের রুট থেকে ফোল্ডারগুলো ফিল্টার করা
+        // রুট থেকে ফোল্ডারগুলো ফিল্টার করা (যেগুলোর আইটেমে ফাইল এক্সটেনশন নেই বা id null/metadata নেই এবং images ফোল্ডার বা হিডেন ফাইল নয়)
         allCategories = items
             .filter(item => {
                 let nameLower = item.name.toLowerCase();
-                return (!item.name.includes('.') || item.id === null) && 
-                       nameLower !== "images" && 
-                       !nameLower.startsWith('.');
+                let isFolder = (!item.name.includes('.') || item.id === null);
+                return isFolder && nameLower !== "images" && !nameLower.startsWith('.');
             })
             .map(item => item.name);
 
-        // যদি কোনো কারণে ডাইনামিক ফেচ খালি থাকে, তবে আপনার বালতির পরিচিত ফোল্ডারগুলো ব্যবহার হবে
-        if (allCategories.length === 0) {
-            allCategories = ["Auto Update", "Movies", "Skym3u.dev", "Sports", "Xtream & Stalker"];
-        }
-
         tabsContainer.innerHTML = "";
+
+        if (allCategories.length === 0) {
+            tabsContainer.innerHTML = `<p class="text-slate-400 text-sm py-2">সুপাবেস বালতিতে কোনো ফোল্ডার পাওয়া যায়নি।</p>`;
+            return;
+        }
 
         // প্রথমে "All" বাটন তৈরি
         let allBtn = document.createElement("button");
@@ -44,7 +62,7 @@ async function initPortal() {
         allBtn.onclick = () => switchCategory("All", allBtn);
         tabsContainer.appendChild(allBtn);
 
-        // ফোল্ডারগুলোর জন্য ডাইনামিক বাটন তৈরি
+        // সুপাবেস থেকে পাওয়া ফোল্ডারগুলোর জন্য ডাইনামিক বাটন তৈরি
         allCategories.forEach(folderName => {
             let btn = document.createElement("button");
             btn.className = "category-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 border border-slate-700/60 hover:bg-slate-700 transition-all shrink-0 cursor-pointer";
@@ -53,32 +71,16 @@ async function initPortal() {
             tabsContainer.appendChild(btn);
         });
 
+        // ডিফল্টভাবে 'All' লোড করা
         loadFiles("All");
 
     } catch (error) {
         console.error("Initialization error:", error);
-        allCategories = ["Auto Update", "Movies", "Skym3u.dev", "Sports", "Xtream & Stalker"];
-        tabsContainer.innerHTML = "";
-        
-        let allBtn = document.createElement("button");
-        allBtn.className = "category-btn px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-500 text-slate-950 shadow-md transition-all shrink-0 cursor-pointer";
-        allBtn.innerText = "🌐 All";
-        allBtn.onclick = () => switchCategory("All", allBtn);
-        tabsContainer.appendChild(allBtn);
-
-        allCategories.forEach(folderName => {
-            let btn = document.createElement("button");
-            btn.className = "category-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 border border-slate-700/60 hover:bg-slate-700 transition-all shrink-0 cursor-pointer";
-            btn.innerText = folderName;
-            btn.onclick = () => switchCategory(folderName, btn);
-            tabsContainer.appendChild(btn);
-        });
-
-        loadFiles("All");
+        tabsContainer.innerHTML = `<p class="text-red-400 text-sm py-2">সুপাবেস থেকে ক্যাটাগরি লোড করতে সমস্যা হয়েছে।</p>`;
     }
 }
 
-// Supabase থেকে ফোল্ডার বা ফাইলের তালিকা আনার ফাংশন
+// সুপাবেসের নির্দিষ্ট ফোল্ডারের ভেতরে ডাটা ফেচ করার ফাংশন
 async function fetchSupabaseFolder(prefixPath) {
     let res = await fetch(STORAGE_LIST_URL, {
         method: 'POST',
@@ -95,7 +97,7 @@ async function fetchSupabaseFolder(prefixPath) {
             sortBy: { column: 'name', order: 'asc' }
         })
     });
-    if (!res.ok) throw new Error("Failed to fetch Supabase storage.");
+    if (!res.ok) throw new Error("Failed to fetch folder contents.");
     return await res.json();
 }
 
@@ -124,7 +126,7 @@ function extractHashId(filename) {
     return match ? match[1].trim() : null;
 }
 
-// ফাইল ও ছবি লোড করার মেইন ফাংশন
+// সুপাবেস থেকে ফাইল ও ছবি লোড করার মেইন ফাংশন
 async function loadFiles(targetCategory) {
     const playlistContainer = document.getElementById("playlist");
     if (!playlistContainer) return;
