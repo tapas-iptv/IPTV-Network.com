@@ -1,6 +1,6 @@
 // Supabase Configuration
 const SUPABASE_URL = 'https://liljnnprtqwoimmsjuhy.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_1HibJOEynpqyB-xuwZnruw_CvwaA3Dd'; // আপনার Publishable Key
+const SUPABASE_ANON_KEY = 'sb_publishable_1HibJOEynpqyB-xuwZnruw_CvwaA3Dd';
 const BUCKET_NAME = 'IPTV-Network';
 
 const STORAGE_URL = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}`;
@@ -12,7 +12,7 @@ window.onload = () => {
 
 let allCategories = [];
 
-// Supabase থেকে ফোল্ডার স্ক্যান করে ডাইনামিক ক্যাটাগরি বাটন তৈরি করার ফাংশন
+// Supabase থেকে নিখুঁতভাবে রুট ফোল্ডার স্ক্যান করার ফাংশন
 async function initPortal() {
     const tabsContainer = document.getElementById("categoryTabsContainer");
     if (!tabsContainer) return;
@@ -20,12 +20,14 @@ async function initPortal() {
     try {
         let items = await fetchSupabaseFolder("");
         
+        // সুপাবেসের রেসপন্স থেকে ফোল্ডারগুলো ফিল্টার করা
         allCategories = items
-            .filter(item => item.id === null && item.name.toLowerCase() !== "images" && !item.name.startsWith('.'))
+            .filter(item => (item.id === null || item.metadata === null) && item.name.toLowerCase() !== "images" && !item.name.startsWith('.'))
             .map(item => item.name);
 
+        // যদি সুপাবেস থেকে সরাসরি ফোল্ডার না পাওয়া যায়, তবে আপনার দেওয়া বালতির পরিচিত ফোল্ডারগুলো ফেচ করার জন্য রিকোয়েস্ট যাবে
         if (allCategories.length === 0) {
-            allCategories = ["Movies", "Sports", "Skym3u.dev"];
+            allCategories = ["Auto Update", "Movies", "Skym3u.dev", "Sports", "Xtream & Stalker"];
         }
 
         tabsContainer.innerHTML = "";
@@ -37,7 +39,7 @@ async function initPortal() {
         allBtn.onclick = () => switchCategory("All", allBtn);
         tabsContainer.appendChild(allBtn);
 
-        // সুপাবেস থেকে পাওয়া ফোল্ডারগুলোর জন্য ডাইনামিক বাটন তৈরি
+        // ডাইনামিক ক্যাটাগরি বাটন তৈরি
         allCategories.forEach(folderName => {
             let btn = document.createElement("button");
             btn.className = "category-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 border border-slate-700/60 hover:bg-slate-700 transition-all shrink-0 cursor-pointer";
@@ -46,12 +48,11 @@ async function initPortal() {
             tabsContainer.appendChild(btn);
         });
 
-        // ডিফল্টভাবে 'All' লোড করা
         loadFiles("All");
 
     } catch (error) {
         console.error("Initialization error:", error);
-        allCategories = ["Movies", "Sports", "Skym3u.dev"];
+        allCategories = ["Auto Update", "Movies", "Skym3u.dev", "Sports", "Xtream & Stalker"];
         tabsContainer.innerHTML = "";
         
         let allBtn = document.createElement("button");
@@ -72,14 +73,15 @@ async function initPortal() {
     }
 }
 
-// Supabase থেকে ফোল্ডার লিস্ট ফেচ করার হেল্পার ফাংশন
+// Supabase থেকে ফোল্ডার বা ফাইলের তালিকা আনার সঠিক মেথড
 async function fetchSupabaseFolder(prefixPath) {
     let res = await fetch(STORAGE_LIST_URL, {
         method: 'POST',
         headers: {
             'apikey': SUPABASE_ANON_KEY,
             'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
         },
         body: JSON.stringify({
             prefix: prefixPath,
@@ -110,14 +112,14 @@ function switchCategory(categoryName, btnElement) {
     loadFiles(categoryName);
 }
 
-// ফাইলের নামের একদম শেষের অংশ থেকে আন্ডারস্কোর দিয়ে আইডি বের করার ফাংশন (যেমন: Name_8.m3u থেকে 8)
+// ফাইলের নাম থেকে আইডি এক্সট্রাক্ট করার ফাংশন
 function extractHashId(filename) {
     let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
     let match = nameWithoutExt.match(/_([a-zA-Z0-9]+)$/);
     return match ? match[1].trim() : null;
 }
 
-// সুপাবেস ফাইল ও ছবি লোড করার মেইন ফাংশন
+// ফাইল ও ছবি লোড করার মেইন ফাংশন
 async function loadFiles(targetCategory) {
     const playlistContainer = document.getElementById("playlist");
     if (!playlistContainer) return;
@@ -138,21 +140,18 @@ async function loadFiles(targetCategory) {
                 let validFiles = items.filter(item => {
                     let nameLower = item.name.toLowerCase();
                     let isImage = /\.(png|jpg|jpeg|webp)$/i.test(nameLower);
-                    let isFolder = (item.id === null);
                     let isHidden = nameLower.startsWith('.');
                     
-                    return item.id !== null && !isImage && !isHidden;
+                    return item.name.includes('.') && !isImage && !isHidden;
                 });
 
-                // সুপাবেস ফোল্ডারের ভেਤরের images ফোল্ডার হ্যান্ডেল করা
+                // সুপাবেসের ভেতরের images ফোল্ডার চেক করা
                 let imagesList = [];
-                let imgFolderItem = items.find(item => item.id === null && item.name.toLowerCase() === "images");
-                if (imgFolderItem) {
+                try {
                     let imgData = await fetchSupabaseFolder(`${catName}/images/`);
-                    imagesList = imgData.filter(i => i.id !== null && /\.(png|jpg|jpeg|webp)$/i.test(i.name));
-                }
+                    imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name));
+                } catch (e) {}
 
-                // ইমেজগুলোর সঠিক ম্যাপ তৈরি করা ফাইলের শেষের আন্ডারস্কোর আইডি দিয়ে
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
@@ -178,11 +177,9 @@ async function loadFiles(targetCategory) {
 
                     let isToday = (fileDateStr === todayStr);
 
-                    // ফাইলের নাম থেকে শেষের আইডি বের করে সরাসরি ম্যাপ থেকে নির্দিষ্ট ছবিটি তুলে নেওয়া
                     let fileHashId = extractHashId(file.name);
                     let matchedImgObj = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : null;
 
-                    // যদি নির্দিষ্ট আইডি না মেলে, তবে ফলব্যাক হিসেবে প্রথম ছবি বা ডিফল্ট নেওয়া
                     if (!matchedImgObj && imagesList.length > 0) {
                         let fallbackImg = imagesList[i % imagesList.length];
                         matchedImgObj = {
@@ -193,7 +190,6 @@ async function loadFiles(targetCategory) {
 
                     let matchedImgUrl = matchedImgObj ? matchedImgObj.download_url : "https://via.placeholder.com/300x160?text=No+Preview";
                     
-                    // টাইটেল ক্লিন করার লজিক
                     let rawNameToClean = matchedImgObj ? matchedImgObj.name : file.name;
                     let nameWithoutExt = rawNameToClean.replace(/\.[^/.]+$/, "");
                     let cleanBaseName = nameWithoutExt.replace(/_[a-zA-Z0-9]+$/, "");
@@ -236,26 +232,21 @@ async function loadFiles(targetCategory) {
 
             let fileItem = `
                 <div class="bg-slate-700/40 hover:bg-slate-700/70 transition-all rounded-xl overflow-hidden flex flex-col sm:flex-row items-stretch border border-slate-600/40 shadow-sm mb-3">
-                    <!-- Thumbnail Image -->
                     <div class="sm:w-48 h-36 sm:h-auto shrink-0 bg-slate-900 relative">
                         <img src="${fileObj.image}" alt="${fileObj.title}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x160?text=Error'">
                     </div>
                     
-                    <!-- Content & Actions -->
                     <div class="p-4 flex flex-col justify-between flex-grow gap-3">
                         <div>
                             <div class="flex items-start justify-between mb-1 gap-2 flex-wrap">
-                                <!-- Title -->
                                 <h3 class="font-bold text-slate-100 text-base sm:text-lg flex items-center gap-2 min-w-0 flex-1">
                                     <span class="text-emerald-400 shrink-0">📺</span> 
                                     <span class="truncate" title="${fileObj.title}">${fileObj.title}</span>
                                 </h3>
-                                <!-- Category Badge on Right -->
                                 <div class="flex items-center gap-1.5 shrink-0">
                                     <span class="text-[10px] font-mono bg-slate-800 text-emerald-400 px-2.5 py-0.5 rounded border border-slate-700">${fileObj.category}</span>
                                 </div>
                             </div>
-                            <!-- File Name & Latest Badge Side by Side -->
                             <div class="flex items-center gap-2 flex-wrap text-xs text-slate-400">
                                 <span>ফাইল: <span class="text-slate-300 font-mono" title="${fileObj.name}">${fileObj.displayName}</span></span>
                                 ${latestBadge}
@@ -263,11 +254,9 @@ async function loadFiles(targetCategory) {
                         </div>
 
                         <div class="flex items-center gap-2 w-full sm:w-auto pt-2 border-t border-slate-600/30">
-                            <!-- Copy Link -->
                             <button onclick="copyRawLink('${fileObj.download_url}', this)" class="flex-1 sm:flex-none bg-slate-600 hover:bg-slate-500 text-slate-200 font-medium px-3.5 py-2 rounded-lg text-xs sm:text-sm text-center transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shrink-0">
                                 🔗 Copy Link
                             </button>
-                            <!-- Download -->
                             <button onclick="downloadOriginalFile('${fileObj.download_url}', '${fileObj.name}')" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg text-xs sm:text-sm text-center transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shrink-0">
                                 📥 Download
                             </button>
@@ -284,7 +273,6 @@ async function loadFiles(targetCategory) {
     }
 }
 
-// লিংক কপি করার ফাংশন
 function copyRawLink(url, buttonElement) {
     navigator.clipboard.writeText(url).then(() => {
         let originalText = buttonElement.innerHTML;
@@ -302,7 +290,6 @@ function copyRawLink(url, buttonElement) {
     });
 }
 
-// ফাইল ডাউনলোড করার ফাংশন
 async function downloadOriginalFile(url, filename) {
     try {
         let response = await fetch(url);
