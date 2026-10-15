@@ -5,27 +5,31 @@ const SUPABASE_URL = 'https://liljnnprtqwoimmsjuhy.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_1HibJOEynpqyB-xuwZnruw_CvwaA3Dd';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// আপনার Supabase Storage Bucket-এর নাম এখানে দিন (যেমন: 'IPTV-Network')
+const STORAGE_BUCKET = 'IPTV-Network'; 
+
 window.onload = () => {
     initPortal();
 };
 
 let allCategories = [];
 
-// Supabase থেকে ক্যাটাগরি লোড করে ডাইনামিক বাটন তৈরি করার ফাংশন
+// স্টোরেজ স্ক্যান করে ক্যাটাগরি বা ফোল্ডারগুলো বের করার ফাংশন
 async function initPortal() {
     const tabsContainer = document.getElementById("categoryTabsContainer");
     if (!tabsContainer) return;
     
     try {
-        // Supabase থেকে সব ফাইল বা ডাটা ফেচ করে ইউনিক ক্যাটাগরিগুলো বের করা
-        let { data, error } = await supabase
-            .from('files')
-            .select('category');
+        // স্টোরেজের মূল রুট ফোল্ডার লিস্ট ফেচ করা
+        let { data: folders, error } = await supabase.storage
+            .from(STORAGE_BUCKET)
+            .list('', { limit: 100 });
 
         if (error) throw error;
 
-        let uniqueCategories = [...new Set(data.map(item => item.category))];
-        allCategories = uniqueCategories.filter(cat => cat && cat.toLowerCase() !== "images");
+        allCategories = folders
+            .filter(item => item.id === null && item.name.toLowerCase() !== "images" && !item.name.startsWith('.'))
+            .map(item => item.name);
 
         if (allCategories.length === 0) {
             allCategories = ["Movies", "Sports", "Skym3u.dev"];
@@ -40,7 +44,7 @@ async function initPortal() {
         allBtn.onclick = () => switchCategory("All", allBtn);
         tabsContainer.appendChild(allBtn);
 
-        // ক্যাটাগরিগুলোর জন্য ডাইনামিক বাটন তৈরি
+        // ফোল্ডারগুলোর জন্য ডাইনামিক বাটন তৈরি
         allCategories.forEach(folderName => {
             let btn = document.createElement("button");
             btn.className = "category-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 border border-slate-700/60 hover:bg-slate-700 transition-all shrink-0 cursor-pointer";
@@ -49,7 +53,6 @@ async function initPortal() {
             tabsContainer.appendChild(btn);
         });
 
-        // ডিফল্টভাবে 'All' লোড করা
         loadFiles("All");
 
     } catch (error) {
@@ -93,7 +96,14 @@ function switchCategory(categoryName, btnElement) {
     loadFiles(categoryName);
 }
 
-// ফাইল ও ডাটা লোড করার মেইন ফাংশন (Supabase বেসড)
+// ফাইলের নাম থেকে আইডি বের করার ফাংশন
+function extractHashId(filename) {
+    let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+    let match = nameWithoutExt.match(/_([a-zA-Z0-9]+)$/);
+    return match ? match[1].trim() : null;
+}
+
+// স্টোরেজ থেকে ফাইল লোড করার মেইন ফাংশন
 async function loadFiles(targetCategory) {
     const playlistContainer = document.getElementById("playlist");
     if (!playlistContainer) return;
@@ -101,48 +111,122 @@ async function loadFiles(targetCategory) {
     playlistContainer.innerHTML = `<p class="text-slate-400 text-center py-6 text-sm sm:text-base">Loading files...</p>`; 
 
     try {
-        let query = supabase.from('files').select('*');
-
-        if (targetCategory !== "All") {
-            query = query.eq('category', targetCategory);
-        }
-
-        let { data: filesData, error } = await query;
-
-        if (error) throw error;
-
-        if (!filesData || filesData.length === 0) {
-            playlistContainer.innerHTML = `<p class="text-slate-400 text-center py-6 text-sm sm:text-base">No files found in this category.</p>`;
-            return;
-        }
+        let categoriesToFetch = targetCategory === "All" ? allCategories : [targetCategory];
+        let collectedFiles = [];
 
         let now = new Date();
         let todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-        let collectedFiles = filesData.map(item => {
-            let commitTime = item.timestamp ? Number(item.timestamp) : 0;
-            let fileDateStr = "";
-            
-            if (commitTime > 0) {
-                let cDate = new Date(commitTime);
-                fileDateStr = `${cDate.getFullYear()}-${String(cDate.getMonth() + 1).padStart(2, '0')}-${String(cDate.getDate()).padStart(2, '0')}`;
+        for (let catName of categoriesToFetch) {
+            try {
+                // ফোল্ডারের ভেতরের ফাইলগুলোর লিস্ট আনা
+                let { data: items, error } = await supabase.storage
+                    .from(STORAGE_BUCKET)
+                    .list(catName, { limit: 100 });
+
+                if (error || !items) continue;
+
+                let validFiles = items.filter(item => {
+                    let nameLower = item.name.toLowerCase();
+                    let isImage = /\.(png|jpg|jpeg|webp)$/i.test(nameLower);
+                    let isHidden = nameLower.startsWith('.');
+                    return !isImage && !isHidden && item.name !== "";
+                });
+
+                // যদি ফোল্ডারে আলাদা 'images' ফোল্ডার থাকে
+                let imagesList = [];
+                let imgFolderItem = items.find(item => item.name.toLowerCase() === "images" && item.id === null);
+                if (imgFolderItem) {
+                    let { data: imgData } = await supabase.storage
+                        .from(STORAGE_BUCKET)
+                        .list(`${catName}/images`, { limit: 100 });
+                    if (imgData) {
+                        imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name));
+                    }
+                }
+
+                let imagesMap = {};
+                for (let img of imagesList) {
+                    let hashId = extractHashId(img.name);
+                    let { data: publicURLData } = supabase.storage
+                        .from(STORAGE_BUCKET)
+                        .getPublicUrl(`${catName}/images/${img.name}`);
+
+                    if (hashId) {
+                        imagesMap[hashId] = {
+                            name: img.name,
+                            download_url: publicURLData.publicUrl
+                        };
+                    }
+                }
+
+                for (let i = 0; i < validFiles.length; i++) {
+                    let file = validFiles[i];
+                    
+                    // ফাইলের পাবলিক ডাউনলোড লিংক জেনারেট করা
+                    let { data: publicURLData } = supabase.storage
+                        .from(STORAGE_BUCKET)
+                        .getPublicUrl(`${catName}/${file.name}`);
+
+                    let downloadUrl = publicURLData.publicUrl;
+                    let commitTime = file.updated_at ? new Date(file.updated_at).getTime() : 0;
+                    
+                    let fileDateStr = "";
+                    if (commitTime > 0) {
+                        let cDate = new Date(commitTime);
+                        fileDateStr = `${cDate.getFullYear()}-${String(cDate.getMonth() + 1).padStart(2, '0')}-${String(cDate.getDate()).padStart(2, '0')}`;
+                    }
+
+                    let isToday = (fileDateStr === todayStr);
+
+                    let fileHashId = extractHashId(file.name);
+                    let matchedImgObj = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : null;
+
+                    if (!matchedImgObj && imagesList.length > 0) {
+                        let fallbackImg = imagesList[i % imagesList.length];
+                        let { data: fbUrlData } = supabase.storage
+                            .from(STORAGE_BUCKET)
+                            .getPublicUrl(`${catName}/images/${fallbackImg.name}`);
+
+                        matchedImgObj = {
+                            name: fallbackImg.name,
+                            download_url: fbUrlData.publicUrl
+                        };
+                    }
+
+                    let matchedImgUrl = matchedImgObj ? matchedImgObj.download_url : "https://via.placeholder.com/300x160?text=No+Preview";
+                    
+                    let rawNameToClean = matchedImgObj ? matchedImgObj.name : file.name;
+                    let nameWithoutExt = rawNameToClean.replace(/\.[^/.]+$/, "");
+                    let cleanBaseName = nameWithoutExt.replace(/_[a-zA-Z0-9]+$/, "");
+                    let titleText = cleanBaseName.replace(/[-_]/g, " ").trim();
+
+                    let extMatch = file.name.match(/\.[^/.]+$/);
+                    let fileExt = extMatch ? extMatch[0] : "";
+                    let nameWithoutFileExt = file.name.replace(/\.[^/.]+$/, "");
+                    let cleanFileName = nameWithoutFileExt.replace(/_[a-zA-Z0-9]+$/, "") + fileExt;
+
+                    collectedFiles.push({
+                        name: file.name,
+                        displayName: cleanFileName,
+                        download_url: downloadUrl,
+                        category: catName,
+                        image: matchedImgUrl,
+                        title: titleText || "Live Stream",
+                        timestamp: commitTime,
+                        isNew: isToday
+                    });
+                }
+            } catch (err) {
+                console.error(`Error in category ${catName}:`, err);
             }
+        }
 
-            let isToday = (fileDateStr === todayStr);
+        if (collectedFiles.length === 0) {
+            playlistContainer.innerHTML = `<p class="text-slate-400 text-center py-6 text-sm sm:text-base">No files found in this category.</p>`;
+            return;
+        }
 
-            return {
-                name: item.name || "file.m3u",
-                displayName: item.displayName || item.name || "file.m3u",
-                download_url: item.download_url || "#",
-                category: item.category || "General",
-                image: item.image || "https://via.placeholder.com/300x160?text=No+Preview",
-                title: item.title || "Live Stream",
-                timestamp: commitTime,
-                isNew: isToday
-            };
-        });
-
-        // টাইম অনুযায়ী সাজানো (নতুন থেকে পুরোনো)
         collectedFiles.sort((a, b) => b.timestamp - a.timestamp);
 
         playlistContainer.innerHTML = ""; 
@@ -197,8 +281,8 @@ async function loadFiles(targetCategory) {
         });
 
     } catch (error) {
-        console.error("Error loading files:", error);
-        playlistContainer.innerHTML = `<p class="text-red-400 text-center py-6 text-sm sm:text-base">Could not load files. Please check database configurations.</p>`;
+        console.error("Error loading files from storage:", error);
+        playlistContainer.innerHTML = `<p class="text-red-400 text-center py-6 text-sm sm:text-base">Could not load files from storage. Please check bucket configurations.</p>`;
     }
 }
 
