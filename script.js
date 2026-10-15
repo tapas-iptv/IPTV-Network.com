@@ -1,5 +1,5 @@
 // Supabase Configuration
-const SUPABASE_URL = 'https://liljnnprtqwoimmsjuhy.supabase.co';
+const SUPABASE_URL = 'https://liljnnprtqwoimmsjuhy.supabase.co/';
 const SUPABASE_ANON_KEY = 'sb_publishable_1HibJOEynpqyB-xuwZnruw_CvwaA3Dd';
 const BUCKET_NAME = 'IPTV-Network';
 
