@@ -1,6 +1,6 @@
 const DATA_USER = "Tapas-Creation"; 
 const DATA_REPO = "M3U-Live"; 
-const GITHUB_TOKEN = "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"; // আপনার গিটহাব টোকেনটি এখানে বসিয়ে দেবেন
+const GITHUB_TOKEN = "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"; // আপনার টোকেনটি এখানে বসিয়ে দেবেন
 
 window.onload = () => {
     initPortal();
@@ -8,7 +8,7 @@ window.onload = () => {
 
 let allCategories = [];
 
-// টোকেন সহ সিকিউর ফেচ ফাংশন (আইপি লিমিট বা রেট ব্লক এড়ানোর জন্য)
+// টোকেন সহ সিকিউর ফেচ ফাংশন
 async function fetchWithAuth(url) {
     let headers = {
         'Accept': 'application/vnd.github.v3+json'
@@ -16,7 +16,8 @@ async function fetchWithAuth(url) {
     if (GITHUB_TOKEN && GITHUB_TOKEN !== "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") {
         headers['Authorization'] = `token ${GITHUB_TOKEN}`;
     }
-    return await fetch(url, { headers });
+    let res = await fetch(url, { headers });
+    return res;
 }
 
 // রুট ফোল্ডার স্ক্যান করে ডাইনামিক ক্যাটাগরি বাটন তৈরি করার ফাংশন
@@ -102,22 +103,28 @@ function switchCategory(categoryName, btnElement) {
     loadFiles(categoryName);
 }
 
-// কমিট বা আপলোড টাইম বের করার ফাংশন
+// কমিট বা আপলোড টাইম বের করার ফাংশন (ক্যাশিং সহ)
 async function getCommitTime(path) {
+    let cacheKey = `commit_time_${path}`;
+    let cachedTime = localStorage.getItem(cacheKey);
+    if (cachedTime) return parseInt(cachedTime);
+
     try {
         let commitUrl = `https://api.github.com/repos/${DATA_USER}/${DATA_REPO}/commits?path=${encodeURIComponent(path)}&per_page=1`;
         let res = await fetchWithAuth(commitUrl);
         if (res.ok) {
             let commits = await res.json();
             if (commits && commits.length > 0) {
-                return new Date(commits[0].commit.committer.date).getTime();
+                let timeVal = new Date(commits[0].commit.committer.date).getTime();
+                localStorage.setItem(cacheKey, timeVal);
+                return timeVal;
             }
         }
     } catch (e) {}
     return 0;
 }
 
-// ফাইলের নামের একদম শেষের অংশ থেকে আন্ডারস্কোর দিয়ে আইডি বের করার ফাংশন (যেমন: Name_8.m3u থেকে 8)
+// ফাইলের নামের একদম শেষের অংশ থেকে আন্ডারস্কোর দিয়ে আইডি বের করার ফাংশন
 function extractHashId(filename) {
     let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
     let match = nameWithoutExt.match(/_([a-zA-Z0-9]+)$/);
@@ -177,7 +184,7 @@ async function loadFiles(targetCategory) {
                     }
                 }
 
-                // প্রতিটি ফাইলের কমিট টাইম বের করা
+                // রিকোয়েস্টগুলোর জট এড়াতে একটার পর একটা সিরিয়ালি কমিট টাইম ফেচ করা
                 let filesWithTime = [];
                 for (let file of validFiles) {
                     let commitTime = await getCommitTime(`${catName}/${file.name}`);
@@ -225,15 +232,15 @@ async function loadFiles(targetCategory) {
                     let cleanBaseName = nameWithoutExt.replace(/_[a-zA-Z0-9]+$/, "");
                     let titleText = cleanBaseName.replace(/[-_]/g, " ").trim();
 
-                    // ফাইলের প্রদর্শিত নাম (displayName) থেকে শুধুমাত্র এক্সটেনশন রেখে শেষের আন্ডারস্কোর ট্যাগটি (যেমন _8) রিমুভ করা
+                    // ফাইলের প্রদর্শিত নাম (displayName)
                     let extMatch = file.name.match(/\.[^/.]+$/);
                     let fileExt = extMatch ? extMatch[0] : "";
                     let nameWithoutFileExt = file.name.replace(/\.[^/.]+$/, "");
                     let cleanFileName = nameWithoutFileExt.replace(/_[a-zA-Z0-9]+$/, "") + fileExt;
 
                     collectedFiles.push({
-                        name: file.name,            // ডাউনলোডের জন্য আসল নাম
-                        displayName: cleanFileName, // স্ক্রিনে দেখানোর জন্য নাম
+                        name: file.name,
+                        displayName: cleanFileName,
                         download_url: downloadUrl,
                         category: catName,
                         image: matchedImgUrl,
