@@ -94,7 +94,7 @@ function switchCategory(categoryName, btnElement) {
     loadFiles(categoryName);
 }
 
-// ফাইলের নাম থেকে আইডি বের করার ফাংশন (যেমন: Name_8.m3u থেকে 8)
+// ফাইলের নাম থেকে আন্ডারস্কোরের পরের আইডি বা হ্যাশ বের করার ফাংশন (যেমন: Name_8.m3u থেকে 8)
 function extractHashId(filename) {
     let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
     let match = nameWithoutExt.match(/_([a-zA-Z0-9]+)$/);
@@ -132,7 +132,7 @@ async function loadFiles(targetCategory) {
                     return !isImage && !isFolder && !isHidden && item.name !== "";
                 });
 
-                // ২. ক্যাটাগরির ভেতরে 'images' ফোল্ডারের ফাইল লিস্ট আনা
+                // ২. ক্যাটাগরির ভেতরের 'images' ফোল্ডারের ফাইল লিস্ট আনা (সঠিক সাব-পাথ দিয়ে)
                 let imagesList = [];
                 let { data: imgData } = await supabase.storage
                     .from(STORAGE_BUCKET)
@@ -142,7 +142,7 @@ async function loadFiles(targetCategory) {
                     imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name.toLowerCase()));
                 }
 
-                // ৩. ছবিগুলোর সঠিক পাবলিক ইউআরএল ম্যাপ তৈরি করা
+                // ৩. ছবিগুলোর আইডি দিয়ে ম্যাপ তৈরি করা (আপনার গিটহাবের লজিক অনুযায়ী)
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
@@ -151,11 +151,14 @@ async function loadFiles(targetCategory) {
                         .getPublicUrl(`${catName}/images/${img.name}`);
 
                     if (hashId) {
-                        imagesMap[hashId] = publicURLData.publicUrl;
+                        imagesMap[hashId] = {
+                            name: img.name,
+                            download_url: publicURLData.publicUrl
+                        };
                     }
                 }
 
-                // ৪. প্রতিটি ফাইলের ডেটা প্রসেস করা
+                // ৪. প্রতিটি ফাইলের জন্য ডেটা ও ছবি ম্যাচ করা
                 for (let i = 0; i < validFiles.length; i++) {
                     let file = validFiles[i];
                     
@@ -174,21 +177,26 @@ async function loadFiles(targetCategory) {
 
                     let isToday = (fileDateStr === todayStr);
 
+                    // ফাইলের আইডি বের করে ছবির ম্যাপ থেকে সঠিক ছবিটি তুলে নেওয়া
                     let fileHashId = extractHashId(file.name);
-                    let matchedImgUrl = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : "";
+                    let matchedImgObj = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : null;
 
-                    // যদি আইডি দিয়ে ছবি না মেলে, তবে প্রথম ছবিটি ফলব্যাক হিসেবে নেওয়া
-                    if (!matchedImgUrl && imagesList.length > 0) {
+                    // যদি নির্দিষ্ট আইডি না মেলে, তবে ফলব্যাক হিসেবে প্রথম ছবি বা ডিফল্ট নেওয়া
+                    if (!matchedImgObj && imagesList.length > 0) {
                         let fallbackImg = imagesList[i % imagesList.length];
                         let { data: fbUrlData } = supabase.storage
                             .from(STORAGE_BUCKET)
                             .getPublicUrl(`${catName}/images/${fallbackImg.name}`);
-                        matchedImgUrl = fbUrlData.publicUrl;
+
+                        matchedImgObj = {
+                            name: fallbackImg.name,
+                            download_url: fbUrlData.publicUrl
+                        };
                     }
 
-                    // ছবি ফাইলের নাম থেকে টাইটেল তৈরি করা
-                    let matchedImgObjName = imagesList.find(img => extractHashId(img.name) === fileHashId);
-                    let rawNameToClean = matchedImgObjName ? matchedImgObjName.name : file.name;
+                    let matchedImgUrl = matchedImgObj ? matchedImgObj.download_url : "";
+                    
+                    let rawNameToClean = matchedImgObj ? matchedImgObj.name : file.name;
                     let nameWithoutExt = rawNameToClean.replace(/\.[^/.]+$/, "");
                     let cleanBaseName = nameWithoutExt.replace(/_[a-zA-Z0-9]+$/, "");
                     let titleText = cleanBaseName.replace(/[-_]/g, " ").trim();
@@ -223,7 +231,7 @@ async function loadFiles(targetCategory) {
 
         playlistContainer.innerHTML = ""; 
 
-        // ডাইনামিক কার্ড রেন্ডার করা এবং ইভেন্ট হ্যান্ডলার যুক্ত করা
+        // কার্ড রেন্ডার করা এবং কপি/ডাউনলোড ইভেন্ট যুক্ত করা
         collectedFiles.forEach((fileObj) => {
             let latestBadge = fileObj.isNew 
                 ? `<span class="bg-amber-500 text-slate-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow animate-pulse shrink-0 inline-flex items-center">✨ Latest</span>` 
@@ -267,7 +275,7 @@ async function loadFiles(targetCategory) {
                 </div>
             `;
 
-            // কপি বাটনের ইভেন্ট
+            // কপি বাটন ইভেন্ট
             const copyBtn = fileItem.querySelector('.copy-btn');
             copyBtn.addEventListener('click', () => {
                 navigator.clipboard.writeText(fileObj.download_url).then(() => {
@@ -286,7 +294,7 @@ async function loadFiles(targetCategory) {
                 });
             });
 
-            // ডাউনলোড বাটনের ইভেন্ট (সরাসরি ডাউনলোড করার জন্য ফেচ ব্লব মেথড)
+            // ডাউনলোড বাটন ইভেন্ট
             const downloadBtn = fileItem.querySelector('.download-btn');
             downloadBtn.addEventListener('click', async () => {
                 try {
@@ -303,7 +311,6 @@ async function loadFiles(targetCategory) {
                     window.URL.revokeObjectURL(blobUrl);
                     downloadBtn.innerHTML = "📥 Download";
                 } catch (e) {
-                    // যদি ক্রস-অরিজিন পলিসির কারণে ফেচ ব্লক হয়, তবে সরাসরি ফলব্যাক হিসেবে ওপেন করবে
                     window.open(fileObj.download_url, '_blank');
                     downloadBtn.innerHTML = "📥 Download";
                 }
