@@ -6,7 +6,7 @@ const BUCKET_NAME = 'IPTV-Network';
 const STORAGE_URL = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}`;
 const STORAGE_LIST_URL = `${SUPABASE_URL}/storage/v1/object/list/${BUCKET_NAME}`;
 
-// আপনার সুপাবেস বালতিতে যে ফোল্ডারগুলো আছে সেগুলোর সঠিক নাম এখানে লিখে দিন
+// ফোল্ডারগুলোর নাম সুপাবেস থেকে সরাসরি ডাইনামিকলি লোড করার জন্য অ্যারে
 let allCategories = [
     "Auto Update",
     "Movies",
@@ -45,15 +45,14 @@ function initPortal() {
     loadFiles("All");
 }
 
-// Supabase থেকে নির্দিষ্ট ফোল্ডারের ফাইল লিস্ট আনার ফাংশন
+// Supabase থেকে সঠিক নিয়মে ফাইল লিস্ট আনার ফাংশন
 async function fetchSupabaseFolder(prefixPath) {
     let res = await fetch(STORAGE_LIST_URL, {
         method: 'POST',
         headers: {
             'apikey': SUPABASE_ANON_KEY,
             'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache'
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({
             prefix: prefixPath,
@@ -107,6 +106,7 @@ async function loadFiles(targetCategory) {
 
         for (let catName of categoriesToFetch) {
             try {
+                // সুপাবেস থেকে নির্দিষ্ট ফোল্ডারের ভেতরের ফাইলগুলো ফেচ করা
                 let items = await fetchSupabaseFolder(`${catName}/`);
                 
                 let validFiles = items.filter(item => {
