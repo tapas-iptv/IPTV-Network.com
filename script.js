@@ -13,7 +13,7 @@ window.onload = () => {
 
 let allCategories = [];
 
-// স্টোরেজ স্ক্যান করে ক্যাটাগরি বা ফোল্ডারগুলো বের করার ফাংশন
+// রুট ফোল্ডার স্ক্যান করে ডাইনামিক ক্যাটাগরি বাটন তৈরি করার ফাংশন
 async function initPortal() {
     const tabsContainer = document.getElementById("categoryTabsContainer");
     if (!tabsContainer) return;
@@ -51,6 +51,7 @@ async function initPortal() {
             tabsContainer.appendChild(btn);
         });
 
+        // ডিফল্টভাবে 'All' লোড করা
         loadFiles("All");
 
     } catch (error) {
@@ -94,14 +95,14 @@ function switchCategory(categoryName, btnElement) {
     loadFiles(categoryName);
 }
 
-// ফাইলের নাম থেকে আন্ডারস্কোরের পরের আইডি বা হ্যাশ বের করার ফাংশন (যেমন: Name_8.m3u থেকে 8)
+// ফাইলের নামের একদম শেষের অংশ থেকে আন্ডারস্কোর দিয়ে আইডি বের করার ফাংশন (যেমন: Name_8.m3u থেকে 8)
 function extractHashId(filename) {
     let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
     let match = nameWithoutExt.match(/_([a-zA-Z0-9]+)$/);
     return match ? match[1].trim() : null;
 }
 
-// স্টোরেজ থেকে ফাইল ও ছবি লোড করার মেইন ফাংশন
+// ফাইল ও ছবি লোড করার মেইন ফাংশন
 async function loadFiles(targetCategory) {
     const playlistContainer = document.getElementById("playlist");
     if (!playlistContainer) return;
@@ -117,7 +118,7 @@ async function loadFiles(targetCategory) {
 
         for (let catName of categoriesToFetch) {
             try {
-                // ১. মূল ফোল্ডারের ফাইল লিস্ট আনা
+                // ১. মূল ক্যাটাগরির ফোল্ডারের ফাইল লিস্ট আনা
                 let { data: items, error } = await supabase.storage
                     .from(STORAGE_BUCKET)
                     .list(catName, { limit: 100 });
@@ -127,12 +128,13 @@ async function loadFiles(targetCategory) {
                 let validFiles = items.filter(item => {
                     let nameLower = item.name.toLowerCase();
                     let isImage = /\.(png|jpg|jpeg|webp)$/i.test(nameLower);
-                    let isFolder = (item.id === null);
+                    let isFolder = (item.id === null); // Supabase-এ ফোল্ডারের id null থাকে
                     let isHidden = nameLower.startsWith('.');
+                    
                     return !isImage && !isFolder && !isHidden && item.name !== "";
                 });
 
-                // ২. ক্যাটাগরির ভেতরের 'images' ফোল্ডারের ফাইল লিস্ট আনা (সঠিক সাব-পাথ দিয়ে)
+                // ২. ক্যাটাগরির ভেতরে 'images' ফোল্ডারের ফাইল লিস্ট আনা
                 let imagesList = [];
                 let { data: imgData } = await supabase.storage
                     .from(STORAGE_BUCKET)
@@ -142,7 +144,7 @@ async function loadFiles(targetCategory) {
                     imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name.toLowerCase()));
                 }
 
-                // ৩. ছবিগুলোর আইডি দিয়ে ম্যাপ তৈরি করা (আপনার গিটহাবের লজিক অনুযায়ী)
+                // ৩. ছবিগুলোর সঠিক পাবলিক ইউআরএলসহ ম্যাপ তৈরি করা
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
@@ -158,10 +160,11 @@ async function loadFiles(targetCategory) {
                     }
                 }
 
-                // ৪. প্রতিটি ফাইলের জন্য ডেটা ও ছবি ম্যাচ করা
+                // ৪. প্রতিটি ফাইলের জন্য ডেটা প্রসেস করা
                 for (let i = 0; i < validFiles.length; i++) {
                     let file = validFiles[i];
                     
+                    // Supabase থেকে ফাইলের পাবলিক ডাউনলোড লিংক জেনারেট করা
                     let { data: publicURLData } = supabase.storage
                         .from(STORAGE_BUCKET)
                         .getPublicUrl(`${catName}/${file.name}`);
@@ -177,7 +180,7 @@ async function loadFiles(targetCategory) {
 
                     let isToday = (fileDateStr === todayStr);
 
-                    // ফাইলের আইডি বের করে ছবির ম্যাপ থেকে সঠিক ছবিটি তুলে নেওয়া
+                    // আপনার গিটহাব কোডের সেই নিখুঁত আইডি ম্যাচিং লজিক
                     let fileHashId = extractHashId(file.name);
                     let matchedImgObj = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : null;
 
@@ -196,11 +199,13 @@ async function loadFiles(targetCategory) {
 
                     let matchedImgUrl = matchedImgObj ? matchedImgObj.download_url : "";
                     
+                    // টাইটেল ক্লিন করার লজিক
                     let rawNameToClean = matchedImgObj ? matchedImgObj.name : file.name;
                     let nameWithoutExt = rawNameToClean.replace(/\.[^/.]+$/, "");
                     let cleanBaseName = nameWithoutExt.replace(/_[a-zA-Z0-9]+$/, "");
                     let titleText = cleanBaseName.replace(/[-_]/g, " ").trim();
 
+                    // ফাইলের প্রদর্শিত নাম (displayName) থেকে এক্সটেনশন রেখে শেষের আন্ডারস্কোর ট্যাগ রিমুভ করা
                     let extMatch = file.name.match(/\.[^/.]+$/);
                     let fileExt = extMatch ? extMatch[0] : "";
                     let nameWithoutFileExt = file.name.replace(/\.[^/.]+$/, "");
@@ -231,7 +236,7 @@ async function loadFiles(targetCategory) {
 
         playlistContainer.innerHTML = ""; 
 
-        // কার্ড রেন্ডার করা এবং কপি/ডাউনলোড ইভেন্ট যুক্ত করা
+        // কার্ড ডাইনামিক রেন্ডার করা এবং কপি/ডাউনলোড ইভেন্ট বাইন্ড করা
         collectedFiles.forEach((fileObj) => {
             let latestBadge = fileObj.isNew 
                 ? `<span class="bg-amber-500 text-slate-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow animate-pulse shrink-0 inline-flex items-center">✨ Latest</span>` 
@@ -320,7 +325,7 @@ async function loadFiles(targetCategory) {
         });
 
     } catch (error) {
-        console.error("Error loading files from storage:", error);
-        playlistContainer.innerHTML = `<p class="text-red-400 text-center py-6 text-sm sm:text-base">Could not load files from storage. Please check bucket configurations.</p>`;
+        console.error("Error loading files:", error);
+        playlistContainer.innerHTML = `<p class="text-red-400 text-center py-6 text-sm sm:text-base">Could not load files. Please check storage configurations.</p>`;
     }
 }
