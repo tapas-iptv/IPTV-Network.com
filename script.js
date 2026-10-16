@@ -134,15 +134,12 @@ async function loadFiles(targetCategory) {
                     imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name.toLowerCase()));
                 }
 
+                // সুপাবেস পাবলিক স্টোরেজ পাথ নিখুঁতভাবে এনকোড করে ইউআরএল তৈরি
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
                     
-                    let { data: pubImg } = supabase.storage
-                        .from(STORAGE_BUCKET)
-                        .getPublicUrl(`${catName}/images/${img.name}`);
-
-                    let imgUrl = pubImg ? pubImg.publicUrl : "";
+                    let imgUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${encodeURIComponent(catName)}/images/${encodeURIComponent(img.name)}`;
 
                     if (hashId) {
                         imagesMap[hashId] = {
@@ -155,10 +152,7 @@ async function loadFiles(targetCategory) {
                 for (let i = 0; i < validFiles.length; i++) {
                     let file = validFiles[i];
                     
-                    let { data: pubFile } = supabase.storage
-                        .from(STORAGE_BUCKET)
-                        .getPublicUrl(`${catName}/${file.name}`);
-                    let downloadUrl = pubFile ? pubFile.publicUrl : "";
+                    let downloadUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${encodeURIComponent(catName)}/${encodeURIComponent(file.name)}`;
                     
                     let commitTime = file.updated_at ? new Date(file.updated_at).getTime() : 0;
                     
@@ -215,9 +209,10 @@ async function loadFiles(targetCategory) {
                 ? `<span class="bg-amber-500 text-slate-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow animate-pulse shrink-0 inline-flex items-center">✨ Latest</span>` 
                 : '';
 
+            // ছবি রেন্ডার করার জন্য পারফেক্ট ইমেজ ট্যাগ
             let imageTag = fileObj.image 
                 ? `<img src="${fileObj.image}" alt="${fileObj.title}" class="w-full h-full object-cover">`
-                : `<div class="w-full h-full bg-slate-800"></div>`;
+                : `<div class="w-full h-full bg-slate-900 flex items-center justify-center text-slate-500 text-xs">No Image</div>`;
 
             let fileItem = document.createElement('div');
             fileItem.className = "bg-slate-700/40 hover:bg-slate-700/70 transition-all rounded-xl overflow-hidden flex flex-col sm:flex-row items-stretch border border-slate-600/40 shadow-sm mb-3";
@@ -272,7 +267,7 @@ async function loadFiles(targetCategory) {
             });
 
             const downloadBtn = fileItem.querySelector('.download-btn');
-            downloadBtn.addEventListener('click', async () => {
+            downloadBtn.downloadBtn.addEventListener('click', async () => {
                 try {
                     downloadBtn.innerHTML = "⏳ Downloading...";
                     let response = await fetch(fileObj.download_url);
