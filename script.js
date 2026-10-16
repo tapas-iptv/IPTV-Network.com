@@ -89,7 +89,6 @@ function switchCategory(categoryName, btnElement) {
     loadFiles(categoryName);
 }
 
-// ফাইলের বা ছবির নামের শেষাংশ থেকে আন্ডারস্কোর আইডি বা হ্যাশ বের করার ফাংশন
 function extractHashId(filename) {
     if (!filename) return null;
     let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
@@ -135,11 +134,11 @@ async function loadFiles(targetCategory) {
                     imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name.toLowerCase()));
                 }
 
-                // সুপাবেসের অফিশিয়াল গেটপাবলিকইউআরএল মেথড দিয়ে সঠিক ইমেজ ম্যাপ তৈরি
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
                     
+                    // Supabase SDK এর বিল্ট-ইন মেথড ব্যবহার করে সঠিক পাবলিক URL নেওয়া
                     let { data: pubImg } = supabase.storage
                         .from(STORAGE_BUCKET)
                         .getPublicUrl(`${catName}/images/${img.name}`);
@@ -172,13 +171,23 @@ async function loadFiles(targetCategory) {
 
                     let isToday = (fileDateStr === todayStr);
 
-                    // ফাইলের নামের শেষাংশের আন্ডারস্কোর আইডি
                     let fileHashId = extractHashId(file.name);
                     let matchedImgObj = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : null;
 
+                    if (!matchedImgObj && imagesList.length > 0) {
+                        let fallbackImg = imagesList[i % imagesList.length];
+                        let { data: pubFallback } = supabase.storage
+                            .from(STORAGE_BUCKET)
+                            .getPublicUrl(`${catName}/images/${fallbackImg.name}`);
+
+                        matchedImgObj = {
+                            name: fallbackImg.name,
+                            url: pubFallback ? pubFallback.publicUrl : ""
+                        };
+                    }
+
                     let matchedImgUrl = matchedImgObj ? matchedImgObj.url : "";
                     
-                    // টাইটেল তৈরির লজিক (আন্ডারস্কোর অংশ বাদ দিয়ে)
                     let rawNameToClean = matchedImgObj ? matchedImgObj.name : file.name;
                     let nameWithoutExt = rawNameToClean.replace(/\.[^/.]+$/, "");
                     let cleanBaseName = nameWithoutExt.replace(/_[a-zA-Z0-9]+$/, "");
@@ -195,7 +204,7 @@ async function loadFiles(targetCategory) {
                         download_url: downloadUrl,
                         category: catName,
                         image: matchedImgUrl,
-                        title: titleText || cleanFileName,
+                        title: titleText || "Live Stream",
                         timestamp: commitTime,
                         isNew: isToday
                     });
@@ -219,10 +228,9 @@ async function loadFiles(targetCategory) {
                 ? `<span class="bg-amber-500 text-slate-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow animate-pulse shrink-0 inline-flex items-center">✨ Latest</span>` 
                 : '';
 
-            // একদম আপনার আগের গিটহাবের মতো রেন্ডারিং ট্যাগ
             let imageTag = fileObj.image 
-                ? `<img src="${fileObj.image}" alt="${fileObj.title}" class="w-full h-full object-cover">`
-                : `<div class="w-full h-full bg-slate-800"></div>`;
+                ? `<img src="${fileObj.image}" alt="${fileObj.title}" class="w-full h-full object-cover" crossorigin="anonymous">`
+                : `<div class="w-full h-full flex items-center justify-center bg-slate-800 text-emerald-400 font-bold text-lg">📺 IPTV</div>`;
 
             let fileItem = document.createElement('div');
             fileItem.className = "bg-slate-700/40 hover:bg-slate-700/70 transition-all rounded-xl overflow-hidden flex flex-col sm:flex-row items-stretch border border-slate-600/40 shadow-sm mb-3";
