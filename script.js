@@ -24,7 +24,7 @@ async function initPortal() {
         if (error) throw error;
 
         allCategories = folders
-            .filter(item => item.id === null && item.name.toLowerCase() !== "images" && !item.name.startsWith('.'))
+            .filter(item => item.id === null && item.name.toLowerCase() !== "images" && item.name.toLowerCase() !== "Images" && !item.name.startsWith('.'))
             .map(item => item.name);
 
         if (allCategories.length === 0) {
@@ -126,9 +126,10 @@ async function loadFiles(targetCategory) {
                 });
 
                 let imagesList = [];
+                // ফোল্ডারের নাম ছোট হাতের 'images' এর পরিবর্তে বড় হাতের 'Images' করা হয়েছে
                 let { data: imgData, error: imgError } = await supabase.storage
                     .from(STORAGE_BUCKET)
-                    .list(`${catName}/images`, { limit: 100 });
+                    .list(`${catName}/Images`, { limit: 100 });
                 
                 if (!imgError && imgData) {
                     imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name.toLowerCase()));
@@ -138,10 +139,10 @@ async function loadFiles(targetCategory) {
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
                     
-                    // Supabase SDK এর বিল্ট-ইন মেথড ব্যবহার করে সঠিক পাবলিক URL নেওয়া
+                    // Supabase SDK এর বিল্ট-ইন মেথড ব্যবহার করে সঠিক পাবলিক URL নেওয়া (এখানেও 'Images' বড় হাতের করা হয়েছে)
                     let { data: pubImg } = supabase.storage
                         .from(STORAGE_BUCKET)
-                        .getPublicUrl(`${catName}/images/${img.name}`);
+                        .getPublicUrl(`${catName}/Images/${img.name}`);
 
                     let imgUrl = pubImg ? pubImg.publicUrl : "";
 
@@ -178,7 +179,7 @@ async function loadFiles(targetCategory) {
                         let fallbackImg = imagesList[i % imagesList.length];
                         let { data: pubFallback } = supabase.storage
                             .from(STORAGE_BUCKET)
-                            .getPublicUrl(`${catName}/images/${fallbackImg.name}`);
+                            .getPublicUrl(`${catName}/Images/${fallbackImg.name}`);
 
                         matchedImgObj = {
                             name: fallbackImg.name,
