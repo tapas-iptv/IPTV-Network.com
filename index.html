@@ -1,230 +1,113 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IPTV-Network by TAPAS</title>
-  <!-- Font Awesome for Social Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    body {
-      background-color: #0b0f19;
-      color: #ffffff;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
-      padding: 20px;
-    }
-
-    /* --- GitHub Readme Header Styles --- */
-    .header-container {
-      text-align: center;
-      margin-bottom: 25px;
-    }
-
-    .animated-banner {
-      max-width: 100%;
-      height: auto;
-    }
-
-    .sub-title {
-      font-size: 1.1rem;
-      font-weight: bold;
-      margin: 12px 0;
-      color: #e0e0e0;
-    }
-
-    .badges-container {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 15px;
-    }
-
-    .badges-container img {
-      height: 28px;
-    }
-
-    .download-btn-container {
-      margin-top: 10px;
-    }
-
-    .apk-btn {
-      display: inline-block;
-      color: #00e676;
-      text-decoration: none;
-      font-weight: bold;
-      font-size: 1.05rem;
-      border: 1px solid rgba(0, 230, 118, 0.3);
-      padding: 6px 16px;
-      border-radius: 6px;
-      background: rgba(0, 230, 118, 0.05);
-      transition: all 0.3s ease;
-    }
-
-    .apk-btn:hover {
-      background: rgba(0, 230, 118, 0.2);
-      border-color: #00e676;
-      box-shadow: 0 0 10px rgba(0, 230, 118, 0.4);
-    }
-
-    /* --- Notice Box Styles --- */
-    .notice-box {
-      position: relative;
-      background-color: rgba(16, 24, 39, 0.8);
-      border: 1px solid #00c853;
-      border-radius: 12px;
-      padding: 20px 24px;
-      margin: 20px auto;
-      max-width: 900px;
-      box-shadow: 0 4px 20px rgba(0, 200, 83, 0.15);
-    }
-
-    /* Header area inside notice box */
-    .notice-header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-    }
-
-    .notice-title {
-      color: #00c853;
-      font-size: 1.3rem;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 0;
-    }
-
-    /* Top-Right Social Icons */
-    .social-icons-top {
-      display: flex;
-      gap: 12px;
-    }
-
-    .social-icons-top a {
-      color: #a0aec0;
-      font-size: 1.2rem;
-      text-decoration: none;
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.05);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.3s ease;
-    }
-
-    /* Hover colors for Social Icons */
-    .social-icons-top a.facebook:hover {
-      color: #1877f2;
-      background: rgba(24, 119, 242, 0.15);
-      transform: translateY(-2px);
-    }
-
-    .social-icons-top a.github:hover {
-      color: #ffffff;
-      background: rgba(255, 255, 255, 0.2);
-      transform: translateY(-2px);
-    }
-
-    .social-icons-top a.whatsapp:hover {
-      color: #25d366;
-      background: rgba(37, 211, 102, 0.15);
-      transform: translateY(-2px);
-    }
-
-    /* Notice Content Text */
-    .notice-content p {
-      color: #25e298;
-      line-height: 1.6;
-      margin: 8px 0;
-      font-size: 0.95rem;
-    }
-
-    .notice-footer {
-      margin-top: 15px;
-      color: #a0aec0;
-      font-size: 0.9rem;
-      line-height: 1.4;
-    }
-
-    .notice-footer strong {
-      color: #e2e8f0;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPTV-Network.com</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-emerald-500 selection:text-white antialiased">
 
-  <!-- ================= HEADER / ANIMATION SECTION ================= -->
-  <div class="header-container">
-    <!-- Animated SVG Title from Readme -->
-    <a href="https://github.com/Tapas-Creation/IPTV-Player" target="_blank">
-      <img class="animated-banner" src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=800&size=34&pause=1000&color=FF1744&background=0B0B0F&center=true&vCenter=true&width=850&height=70&lines=WELCOME+TO+Tapas-Creation;LIVE+TV+%7C+MOVIES+%7C+SERIES;XTREAM+%7C+STALKER%2FMAC+%7C+M3U%2FM3U8" alt="IPTV NETWORK animated title" />
-    </a>
+    <!-- Header Section -->
+    <header class="bg-slate-800/85 backdrop-blur-md border-b border-slate-700/50 py-4 px-4 sm:px-6 sticky top-0 z-50 shadow-md">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <svg class="w-6 h-6 sm:w-7 sm:h-7 text-emerald-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 00-2 2z"></path>
+                </svg>
+                <h1 class="text-lg sm:text-xl font-bold tracking-wide text-slate-100 truncate">IPTV-Network by TAPAS</h1>
+            </div>
+            <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full font-medium shrink-0">Live Server</span>
+        </div>
+    </header>
 
-    <!-- Subtitle -->
-    <div class="sub-title">Android IPTV</div>
+    <!-- Main Content Section -->
+    <main class="max-w-4xl w-full mx-auto px-3 sm:px-4 py-6 sm:py-8 flex-grow">
+        
+        <!-- GitHub Readme Animated Header Section Above Notice Box -->
+        <div class="text-center mb-8 flex flex-col items-center justify-center space-y-3">
+            <a href="https://github.com/Tapas-Creation/IPTV-Player" target="_blank" class="block w-full max-w-full overflow-hidden">
+                <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=800&size=34&pause=1000&color=FF1744&background=0B0B0F&center=true&vCenter=true&width=850&height=70&lines=WELCOME+TO+Tapas-Creation;LIVE+TV+%7C+MOVIES+%7C+SERIES;XTREAM+%7C+STALKER%2FMAC+%7C+M3U%2FM3U8" alt="IPTV NETWORK animated title" class="mx-auto max-w-full h-auto rounded-lg" />
+            </a>
 
-    <!-- Shields Badges -->
-    <div class="badges-container">
-      <img src="https://img.shields.io/badge/PLATFORM-ANDROID-0B0B0F?style=for-the-badge&labelColor=0B0B0F&color=FF1744" alt="Android" />
-      <img src="https://img.shields.io/badge/THEME-RED%20%26%20BLACK-0B0B0F?style=for-the-badge&labelColor=0B0B0F&color=FF1744" alt="Red and black theme" />
-      <img src="https://img.shields.io/badge/RELEASE-v1.0-0B0B0F?style=for-the-badge&labelColor=0B0B0F&color=FF1744" alt="Version 1.0" />
-    </div>
+            <h2 class="text-lg font-bold text-slate-200 tracking-wide">Android IPTV</h2>
 
-    <!-- Single Download Button (Issue & Release buttons removed) -->
-    <div class="download-btn-container">
-      <a href="https://github.com/Tapas-Creation/IPTV-Player/releases/download/V1.0.18/IPTV-TAPAS.V1.0.18.apk" class="apk-btn" target="_blank">
-        ⬇️ APK ডাউনলোড
-      </a>
-    </div>
-  </div>
+            <div class="flex flex-wrap items-center justify-center gap-2">
+                <img src="https://img.shields.io/badge/PLATFORM-ANDROID-0B0B0F?style=for-the-badge&labelColor=0B0B0F&color=FF1744" alt="Android" />
+                <img src="https://img.shields.io/badge/THEME-RED%20%26%20BLACK-0B0B0F?style=for-the-badge&labelColor=0B0B0F&color=FF1744" alt="Red and black theme" />
+                <img src="https://img.shields.io/badge/RELEASE-v1.0-0B0B0F?style=for-the-badge&labelColor=0B0B0F&color=FF1744" alt="Version 1.0" />
+            </div>
 
+            <div class="pt-2">
+                <a href="https://github.com/Tapas-Creation/IPTV-Player/releases/download/V1.0.18/IPTV-TAPAS.V1.0.18.apk" target="_blank" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm px-4 py-2 rounded-xl border border-emerald-400/30 transition-all shadow-md">
+                    ⬇️ APK ডাউনলোড
+                </a>
+            </div>
+        </div>
 
-  <!-- ================= NOTICE BOX SECTION ================= -->
-  <div class="notice-box">
-    
-    <!-- Notice Header with Top-Right Social Icons -->
-    <div class="notice-header-row">
-      <h2 class="notice-title">
-        📢 গুরুত্বপূর্ণ নোটিশ
-      </h2>
+        <!-- Notice Box (With Social Icons at Bottom-Right) -->
+        <div class="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 mb-6 shadow-lg backdrop-blur-sm relative">
+            <div class="flex items-start gap-3">
+                <span class="text-emerald-400 text-lg shrink-0 mt-0.5">📢</span>
+                <div class="w-full">
+                    <h3 class="text-sm sm:text-base font-semibold text-emerald-300 mb-1">গুরুত্বপূর্ণ নোটিশ</h3>
+                    <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                        স্বাগতম! আপনারা সবাই কোনো রকম বিরক্তিকর অ্যাড, পপ-আপ কিংবা অ্যাডাল্ট বা জুয়ার বিজ্ঞাপন ছাড়াই সরাসরি sky-m3u.dev থেকে সব আপডেট করা ফাইল ও লিংক কোনো ঝামেলা ছাড়াই সংগ্রহ করতে পারবেন।
+                    </p>
+                    <p class="text-xs sm:text-sm text-emerald-400 font-medium mt-2">
+                        বিশেষ দ্রষ্টব্য: No files found in this category. দেখালে অবশ্যই নেট ডিসকানেক্ট করে আবার চেষ্টা করুন। এই লিংকগুলো যেকোনো নেটওয়ার্ক এবং যেকোনো ডিভাইসে স্মুথলি চলবে। এখানে কোনো ধরনের টোকেন বা সিকিউরিটি লক যুক্ত করা নেই। আরও আপডেট পেতে আমাদের ফেসবুক পেজে যুক্ত হতে পারেন।
+                    </p>
+                    
+                    <div class="flex flex-col sm:flex-row items-start sm:items-end justify-between mt-4 gap-3">
+                        <p class="text-xs text-slate-400">
+                            ধন্যবাদ, <br><strong class="text-slate-200">তাপস মন্ডল</strong>
+                        </p>
+                        
+                        <!-- Social Media Icons at Bottom Right -->
+                        <div class="flex items-center gap-2 self-end sm:self-auto">
+                            <a href="https://www.facebook.com/iptvnetworkbd" target="_blank" title="Facebook Page" class="w-8 h-8 rounded-full bg-slate-800/80 hover:bg-blue-600 text-slate-300 hover:text-white border border-slate-700 hover:border-blue-500 flex items-center justify-center transition-all duration-200">
+                                <i class="fab fa-facebook-f text-sm"></i>
+                            </a>
+                            <a href="https://wa.me/YOUR_PHONE_NUMBER" target="_blank" title="WhatsApp Support" class="w-8 h-8 rounded-full bg-slate-800/80 hover:bg-emerald-600 text-slate-300 hover:text-white border border-slate-700 hover:border-emerald-500 flex items-center justify-center transition-all duration-200">
+                                <i class="fab fa-whatsapp text-sm"></i>
+                            </a>
+                            <a href="https://github.com/Tapas-Creation" target="_blank" title="GitHub Repository" class="w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 hover:border-slate-500 flex items-center justify-center transition-all duration-200">
+                                <i class="fab fa-github text-sm"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-      <!-- Social Media Icons (Top Right Corner) -->
-      <div class="social-icons-top">
-        <a href="https://facebook.com/YOUR_PAGE" target="_blank" class="facebook" title="Facebook">
-          <i class="fab fa-facebook-f"></i>
-        </a>
-        <a href="https://github.com/Tapas-Creation" target="_blank" class="github" title="GitHub">
-          <i class="fab fa-github"></i>
-        </a>
-        <a href="https://wa.me/YOUR_NUMBER" target="_blank" class="whatsapp" title="WhatsApp">
-          <i class="fab fa-whatsapp"></i>
-        </a>
-      </div>
-    </div>
+        <!-- Dynamic Category Navigation Tabs -->
+        <div id="categoryTabsContainer" class="flex items-center gap-2 overflow-x-auto pb-3 mb-6 scrollbar-none">
+            <button class="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-400 border border-slate-700/60 shrink-0">Loading categories...</button>
+        </div>
 
-    <!-- Notice Content Body -->
-    <div class="notice-content">
-      <p>
-        স্বাগতম! আপনারা সবাই কোনো রকম বিরক্তিকর অ্যাড, পপ-আপ কিংবা অ্যাডাল্ট বা জুয়ার বিজ্ঞাপন ছাড়াই সরাসরি সব আপডেট করা ফাইল ও লিংক কোনো ঝামেলা ছাড়াই সংগ্রহ করতে পারবেন।
-      </p>
-      <p>
-        <strong>বিশেষ দ্রষ্টব্য:</strong> এই সাইটের সমস্ত ফাইল/লিংক শুধুমাত্র ব্যক্তিগত ভাবে ব্যবহারের অনুমতি দেয়। কেউ যদি সিয়ার করতে চান, তাহলে অবশ্যই ক্রেডিট উল্লেখ বাঞ্ছনীয়। সেক্ষেত্রে ফাইল এর কোড পরিবর্তন না করার অনুরোধ রইলো। আরও আপডেট পেতে আমাদের ফেসবুক পেজে যুক্ত হতে পারেন।
-      </p>
-    </div>
+        <!-- Playlist Container -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 sm:p-6 shadow-xl backdrop-blur-sm">
+            <div class="border-b border-slate-700/60 pb-3 sm:pb-4 mb-4 sm:mb-6 flex items-center justify-between">
+                <h2 class="text-base sm:text-xl font-semibold text-slate-200 flex items-center gap-2">
+                    📂 Available Playlist Files
+                </h2>
+                <span id="currentCategoryTitle" class="text-xs text-emerald-400 font-mono bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">All</span>
+            </div>
 
-    <!-- Notice Footer -->
-    <div class="notice-footer">
-      ধন্যবাদ,<br>
-      <strong>তাপস মণ্ডল</strong>
-    </div>
+            <!-- Dynamic Files Container -->
+            <div id="playlist" class="space-y-4">
+                <p class="text-slate-400 text-center py-6 text-sm sm:text-base">Loading files...</p>
+            </div>
+        </div>
+    </main>
 
-  </div>
+    <!-- Footer Section -->
+    <footer class="bg-slate-800/40 border-t border-slate-800 py-4 text-center text-xs text-slate-400 px-4">
+        <p>&copy; 2026 Developed by Tapas Mondal | All rights reserved.</p>
+    </footer>
 
+    <!-- Script File (Added type="module" for Supabase support) -->
+    <script type="module" src="script.js"></script>
 </body>
 </html>
