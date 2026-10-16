@@ -4,7 +4,7 @@ const SUPABASE_URL = 'https://liljnnprtqwoimmsjuhy.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_1HibJOEynpqyB-xuwZnruw_CvwaA3Dd';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const STORAGE_BUCKET = 'IPTV-NETWORK'; // ড্যাশবোর্ডের সাথে হুবহু মিল রেখে বড় হাতের অক্ষরে দেওয়া হলো
+const STORAGE_BUCKET = 'IPTV-Network'; // আপনার আগের সঠিক ছোট-বড় অক্ষরের বালতির নাম
 
 window.onload = () => {
     initPortal();
@@ -134,10 +134,16 @@ async function loadFiles(targetCategory) {
                     imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name.toLowerCase()));
                 }
 
+                // সুপাবেসের অফিশিয়াল গেটপাবলিকইউআরএল দিয়ে সঠিক ইমেজ ম্যাপিং
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
-                    let imgUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${encodeURIComponent(catName)}/images/${encodeURIComponent(img.name)}`;
+                    
+                    let { data: pubImg } = supabase.storage
+                        .from(STORAGE_BUCKET)
+                        .getPublicUrl(`${catName}/images/${img.name}`);
+
+                    let imgUrl = pubImg ? pubImg.publicUrl : "";
 
                     if (hashId) {
                         imagesMap[hashId] = {
@@ -150,7 +156,10 @@ async function loadFiles(targetCategory) {
                 for (let i = 0; i < validFiles.length; i++) {
                     let file = validFiles[i];
                     
-                    let downloadUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${encodeURIComponent(catName)}/${encodeURIComponent(file.name)}`;
+                    let { data: pubFile } = supabase.storage
+                        .from(STORAGE_BUCKET)
+                        .getPublicUrl(`${catName}/${file.name}`);
+                    let downloadUrl = pubFile ? pubFile.publicUrl : "";
                     
                     let commitTime = file.updated_at ? new Date(file.updated_at).getTime() : 0;
                     
