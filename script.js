@@ -4,7 +4,7 @@ const SUPABASE_URL = 'https://liljnnprtqwoimmsjuhy.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_1HibJOEynpqyB-xuwZnruw_CvwaA3Dd';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const STORAGE_BUCKET = 'IPTV-Network'; // আপনার আগের সঠিক ছোট-বড় অক্ষরের বালতির নাম
+const STORAGE_BUCKET = 'IPTV-Network'; 
 
 window.onload = () => {
     initPortal();
@@ -134,7 +134,6 @@ async function loadFiles(targetCategory) {
                     imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name.toLowerCase()));
                 }
 
-                // সুপাবেসের অফিশিয়াল গেটপাবলিকইউআরএল দিয়ে সঠিক ইমেজ ম্যাপিং
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
