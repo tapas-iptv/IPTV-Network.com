@@ -89,7 +89,7 @@ function switchCategory(categoryName, btnElement) {
     loadFiles(categoryName);
 }
 
-// ফাইলের বা ছবির নামের শেষাংশ থেকে আন্ডারস্কোর আইডি বের করার ফাংশন
+// ফাইলের বা ছবির নামের শেষাংশ থেকে আন্ডারস্কোর আইডি বা হ্যাশ বের করার ফাংশন
 function extractHashId(filename) {
     if (!filename) return null;
     let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
@@ -135,11 +135,16 @@ async function loadFiles(targetCategory) {
                     imagesList = imgData.filter(i => /\.(png|jpg|jpeg|webp)$/i.test(i.name.toLowerCase()));
                 }
 
-                // ছবির আন্ডারস্কোর আইডি দিয়ে ম্যাপ তৈরি
+                // সুপাবেসের অফিশিয়াল গেটপাবলিকইউআরএল মেথড দিয়ে সঠিক ইমেজ ম্যাপ তৈরি
                 let imagesMap = {};
                 for (let img of imagesList) {
                     let hashId = extractHashId(img.name);
-                    let imgUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${encodeURIComponent(catName)}/images/${encodeURIComponent(img.name)}`;
+                    
+                    let { data: pubImg } = supabase.storage
+                        .from(STORAGE_BUCKET)
+                        .getPublicUrl(`${catName}/images/${img.name}`);
+
+                    let imgUrl = pubImg ? pubImg.publicUrl : "";
 
                     if (hashId) {
                         imagesMap[hashId] = {
@@ -152,7 +157,10 @@ async function loadFiles(targetCategory) {
                 for (let i = 0; i < validFiles.length; i++) {
                     let file = validFiles[i];
                     
-                    let downloadUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${encodeURIComponent(catName)}/${encodeURIComponent(file.name)}`;
+                    let { data: pubFile } = supabase.storage
+                        .from(STORAGE_BUCKET)
+                        .getPublicUrl(`${catName}/${file.name}`);
+                    let downloadUrl = pubFile ? pubFile.publicUrl : "";
                     
                     let commitTime = file.updated_at ? new Date(file.updated_at).getTime() : 0;
                     
@@ -166,13 +174,11 @@ async function loadFiles(targetCategory) {
 
                     // ফাইলের নামের শেষাংশের আন্ডারস্কোর আইডি
                     let fileHashId = extractHashId(file.name);
-                    
-                    // হুবহু আইডি ম্যাচ করলে তবেই সেই ছবিটি তুলবে, অন্যথায় ফাকা রাখবে
                     let matchedImgObj = (fileHashId && imagesMap[fileHashId]) ? imagesMap[fileHashId] : null;
 
                     let matchedImgUrl = matchedImgObj ? matchedImgObj.url : "";
                     
-                    // টাইটেল থেকে আন্ডারস্কোর ও সংখ্যা বাদ দেওয়া
+                    // টাইটেল তৈরির লজিক (আন্ডারস্কোর অংশ বাদ দিয়ে)
                     let rawNameToClean = matchedImgObj ? matchedImgObj.name : file.name;
                     let nameWithoutExt = rawNameToClean.replace(/\.[^/.]+$/, "");
                     let cleanBaseName = nameWithoutExt.replace(/_[a-zA-Z0-9]+$/, "");
@@ -213,10 +219,10 @@ async function loadFiles(targetCategory) {
                 ? `<span class="bg-amber-500 text-slate-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow animate-pulse shrink-0 inline-flex items-center">✨ Latest</span>` 
                 : '';
 
-            // নিখুঁত ইমেজ ট্যাগ: ছবি থাকলে দেখাবে, না থাকলে একদম ফাঁকা/ক্লিন বক্স দেখাবে (কোনো হাবিজাবি টেক্সট থাকবে না)
+            // একদম আপনার আগের গিটহাবের মতো রেন্ডারিং ট্যাগ
             let imageTag = fileObj.image 
-                ? `<img src="${fileObj.image}" alt="${fileObj.title}" class="w-full h-full object-cover" onerror="this.style.display='none';">`
-                : `<div class="w-full h-full bg-slate-900"></div>`;
+                ? `<img src="${fileObj.image}" alt="${fileObj.title}" class="w-full h-full object-cover">`
+                : `<div class="w-full h-full bg-slate-800"></div>`;
 
             let fileItem = document.createElement('div');
             fileItem.className = "bg-slate-700/40 hover:bg-slate-700/70 transition-all rounded-xl overflow-hidden flex flex-col sm:flex-row items-stretch border border-slate-600/40 shadow-sm mb-3";
